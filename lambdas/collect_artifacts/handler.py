@@ -22,12 +22,25 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+# Ensure the repository root is on the path so the shared package is importable.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from shared.cloudwatch_queries import (  # noqa: E402
+    find_log_groups,
+    run_insights_query,
+    wait_for_query_results as _shared_wait_for_query_results,
+    parse_insights_results as _shared_parse_insights_results,
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -61,7 +74,7 @@ def put_artifact(bucket: str, key: str, data: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# VPC Flow Logs collection
+# VPC Flow Logs collection (delegates to shared.cloudwatch_queries)
 # ---------------------------------------------------------------------------
 
 def collect_vpc_flow_logs(resource_id: str, region: str, hours_back: int = 24) -> list[dict]:
@@ -69,12 +82,7 @@ def collect_vpc_flow_logs(resource_id: str, region: str, hours_back: int = 24) -
     if not resource_id:
         return []
 
-    logs = boto3.client("logs", region_name=region)
-    end_time = datetime.now(tz=timezone.utc)
-    start_time = end_time - timedelta(hours=hours_back)
-
-    # Find VPC flow log groups
-    log_groups = _find_vpc_flow_log_groups(logs)
+    log_groups = _find_vpc_flow_log_groups_via_shared(region)
     if not log_groups:
         logger.info("No VPC flow log groups found in region %s", region)
         return []
@@ -86,18 +94,12 @@ def collect_vpc_flow_logs(resource_id: str, region: str, hours_back: int = 24) -
         f"| limit 500"
     )
 
-    try:
-        response = logs.start_query(
-            logGroupNames=log_groups[:10],  # API supports max 20, but limit to 10 for safety
-            startTime=int(start_time.timestamp()),
-            endTime=int(end_time.timestamp()),
-            queryString=query,
-        )
-        query_id = response["queryId"]
-        return _wait_for_query_results(logs, query_id)
-    except ClientError as exc:
-        logger.error("VPC flow logs query failed: %s", exc)
-        return [{"error": str(exc)}]
+    return run_insights_query(
+        query=query,
+        log_groups=log_groups,
+        region=region,
+        hours_back=hours_back,
+    )
 
 
 def _find_vpc_flow_log_groups(logs_client: Any) -> list[str]:
@@ -116,35 +118,24 @@ def _find_vpc_flow_log_groups(logs_client: Any) -> list[str]:
         return []
 
 
+def _find_vpc_flow_log_groups_via_shared(region: str) -> list[str]:
+    """Find VPC flow log groups using the shared utility."""
+    return find_log_groups(region, "vpc", "flow")
+
+
 def _wait_for_query_results(logs_client: Any, query_id: str, max_wait: int = 60) -> list[dict]:
     """Poll until the Insights query finishes and return structured results."""
-    waited = 0
-    poll_interval = 2
-    while waited < max_wait:
-        response = logs_client.get_query_results(QueryId=query_id)
-        status = response.get("status")
-        if status in ("Complete", "Failed", "Cancelled"):
-            if status != "Complete":
-                logger.warning("Insights query %s ended with status %s", query_id, status)
-                return []
-            return _parse_insights_results(response.get("results", []))
-        time.sleep(poll_interval)
-        waited += poll_interval
-    logger.warning("Insights query %s timed out after %d seconds", query_id, max_wait)
-    return []
+    return _shared_wait_for_query_results(logs_client, query_id, max_wait=max_wait)
 
 
 def _parse_insights_results(results: list[list[dict]]) -> list[dict]:
     """Convert Insights result rows into plain dicts."""
-    records = []
-    for row in results:
-        record = {item["field"]: item["value"] for item in row if not item["field"].startswith("@ptr")}
-        records.append(record)
-    return records
+    return _shared_parse_insights_results(results)
 
 
 # ---------------------------------------------------------------------------
 # CloudTrail log collection via CloudWatch Logs Insights
+# (delegates to shared.cloudwatch_queries)
 # ---------------------------------------------------------------------------
 
 def collect_cloudtrail_logs(resource_id: str, region: str, hours_back: int = 24) -> list[dict]:
@@ -152,11 +143,7 @@ def collect_cloudtrail_logs(resource_id: str, region: str, hours_back: int = 24)
     if not resource_id:
         return []
 
-    logs = boto3.client("logs", region_name=region)
-    end_time = datetime.now(tz=timezone.utc)
-    start_time = end_time - timedelta(hours=hours_back)
-
-    log_groups = _find_cloudtrail_log_groups(logs)
+    log_groups = _find_cloudtrail_log_groups_via_shared(region)
     if not log_groups:
         logger.info("No CloudTrail log groups found in region %s", region)
         return []
@@ -168,18 +155,12 @@ def collect_cloudtrail_logs(resource_id: str, region: str, hours_back: int = 24)
         f"| limit 500"
     )
 
-    try:
-        response = logs.start_query(
-            logGroupNames=log_groups[:10],
-            startTime=int(start_time.timestamp()),
-            endTime=int(end_time.timestamp()),
-            queryString=query,
-        )
-        query_id = response["queryId"]
-        return _wait_for_query_results(logs, query_id)
-    except ClientError as exc:
-        logger.error("CloudTrail log query failed: %s", exc)
-        return [{"error": str(exc)}]
+    return run_insights_query(
+        query=query,
+        log_groups=log_groups,
+        region=region,
+        hours_back=hours_back,
+    )
 
 
 def _find_cloudtrail_log_groups(logs_client: Any) -> list[str]:
@@ -196,6 +177,11 @@ def _find_cloudtrail_log_groups(logs_client: Any) -> list[str]:
     except ClientError as exc:
         logger.warning("Could not list CloudWatch log groups: %s", exc)
         return []
+
+
+def _find_cloudtrail_log_groups_via_shared(region: str) -> list[str]:
+    """Find CloudTrail log groups using the shared utility."""
+    return find_log_groups(region, "cloudtrail", "trail")
 
 
 # ---------------------------------------------------------------------------

@@ -21,11 +21,23 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+# Ensure the repository root is on the path so the shared package is importable.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from shared.cloudtrail_queries import (  # noqa: E402
+    extract_source_ip,
+    lookup_cloudtrail_events,
+    resolve_lookup_attribute,
+)
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -83,7 +95,7 @@ def get_guardduty_finding(finding_id: str, region: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# CloudTrail enrichment
+# CloudTrail enrichment (uses shared.cloudtrail_queries helpers)
 # ---------------------------------------------------------------------------
 
 def get_cloudtrail_events(
@@ -130,24 +142,12 @@ def get_cloudtrail_events(
 
 def _resolve_cloudtrail_lookup_attribute(resource_type: str, resource_id: str) -> dict:
     """Map a resource type to the correct CloudTrail lookup attribute."""
-    type_lower = (resource_type or "").lower()
-    if "instance" in type_lower:
-        return {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
-    if "role" in type_lower:
-        return {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
-    if "user" in type_lower:
-        return {"AttributeKey": "Username", "AttributeValue": resource_id}
-    return {"AttributeKey": "ResourceName", "AttributeValue": resource_id}
+    return resolve_lookup_attribute(resource_type, resource_id)
 
 
 def _extract_source_ip(event: dict) -> str | None:
     """Extract the source IP from a CloudTrail event's CloudTrailEvent JSON."""
-    raw_json = event.get("CloudTrailEvent", "{}")
-    try:
-        detail = json.loads(raw_json)
-        return detail.get("sourceIPAddress")
-    except (json.JSONDecodeError, AttributeError):
-        return None
+    return extract_source_ip(event)
 
 
 # ---------------------------------------------------------------------------
