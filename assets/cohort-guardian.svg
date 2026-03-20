@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <rect width="32" height="32" fill="none"/>
+  <!-- Spear -->
+  <rect x="4" y="6" width="1" height="16" fill="#8b6b3e"/>
+  <rect x="3" y="4" width="3" height="1" fill="#c9c9c9"/>
+  <rect x="4" y="3" width="1" height="1" fill="#c9c9c9"/>
+
+  <!-- Helmet -->
+  <rect x="6" y="5" width="6" height="2" fill="#b23b3b"/>
+  <rect x="8" y="4" width="2" height="1" fill="#8e2a2a"/>
+  <rect x="6" y="7" width="1" height="3" fill="#8e2a2a"/>
+  <rect x="11" y="6" width="1" height="2" fill="#8e2a2a"/>
+
+  <!-- Face -->
+  <rect x="7" y="7" width="4" height="3" fill="#f2c7a5"/>
+  <rect x="9" y="8" width="1" height="1" fill="#2b2b2b"/>
+
+  <!-- Body -->
+  <rect x="7" y="10" width="5" height="6" fill="#4a7bd0"/>
+  <rect x="7" y="13" width="5" height="1" fill="#2d4a7a"/>
+  <rect x="11" y="11" width="1" height="3" fill="#f2c7a5"/>
+
+  <!-- Shield -->
+  <rect x="12" y="10" width="5" height="9" fill="#8b5a2b"/>
+  <rect x="13" y="11" width="3" height="7" fill="#d4a017"/>
+  <rect x="14" y="12" width="1" height="3" fill="#f2c15d"/>
+
+  <!-- Legs -->
+  <rect x="7" y="16" width="2" height="6" fill="#7a5c3b"/>
+  <rect x="9" y="16" width="2" height="6" fill="#7a5c3b"/>
+  <rect x="7" y="22" width="2" height="1" fill="#3a2a1a"/>
+  <rect x="9" y="22" width="2" height="1" fill="#3a2a1a"/>
+
+  <!-- Cloud -->
+  <rect x="18" y="13" width="12" height="5" fill="#dbeeff"/>
+  <rect x="18" y="11" width="4" height="2" fill="#dbeeff"/>
+  <rect x="21" y="10" width="5" height="3" fill="#dbeeff"/>
+  <rect x="25" y="11" width="5" height="2" fill="#dbeeff"/>
+  <rect x="20" y="16" width="9" height="2" fill="#b5d4f2"/>
+  <rect x="23" y="15" width="5" height="1" fill="#b5d4f2"/>
+  <rect x="19" y="12" width="1" height="1" fill="#88a7d0"/>
+  <rect x="29" y="12" width="1" height="1" fill="#88a7d0"/>
+  <rect x="29" y="15" width="1" height="1" fill="#88a7d0"/>
+</svg>

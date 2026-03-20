@@ -1,5 +1,9 @@
 # cohort – AI Agent Cloud Incident Response
 
+<p align="center">
+  <img src="assets/cohort-guardian.svg" alt="Pixel art of a Roman cohort defending the cloud" width="320">
+</p>
+
 An automated, AI-assisted cloud incident response system that runs on AWS.
 Designed to integrate with your SIEM (Google SecOps / Chronicle) so that a GuardDuty
 alert automatically triggers a full triage workflow—collecting evidence, reasoning over
