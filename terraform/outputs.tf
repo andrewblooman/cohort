@@ -57,3 +57,13 @@ output "account_id" {
   description = "AWS account ID where resources are deployed"
   value       = data.aws_caller_identity.current.account_id
 }
+
+output "shared_layer_arn" {
+  description = "ARN of the shared utilities Lambda Layer"
+  value       = aws_lambda_layer_version.shared.arn
+}
+
+output "shared_layer_version" {
+  description = "Version number of the shared utilities Lambda Layer"
+  value       = aws_lambda_layer_version.shared.version
+}

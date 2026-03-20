@@ -66,6 +66,23 @@ class TestPlaybookBase:
         assert pb.key_indicators == []
         assert pb.response_actions == []
         assert pb.mitre_techniques == []
+        assert pb.data_sources == []
+
+    def test_format_prompt_section_includes_data_sources(self):
+        pb = Playbook(
+            name="Sources Playbook",
+            description="Has data sources.",
+            data_sources=["cloudtrail", "cloudwatch"],
+        )
+        section = pb.format_prompt_section()
+        assert "Required Data Sources" in section
+        assert "cloudtrail" in section
+        assert "cloudwatch" in section
+
+    def test_format_prompt_section_omits_empty_data_sources(self):
+        pb = Playbook(name="No Sources", description="No data sources.")
+        section = pb.format_prompt_section()
+        assert "Required Data Sources" not in section
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +104,11 @@ class TestIAMPrivilegeEscalationPlaybook:
     def test_has_mitre_techniques(self):
         assert "T1078" in IAM_PRIVILEGE_ESCALATION.mitre_techniques
 
+    def test_has_data_sources(self):
+        assert len(IAM_PRIVILEGE_ESCALATION.data_sources) > 0
+        assert "cloudtrail" in IAM_PRIVILEGE_ESCALATION.data_sources
+        assert "iam" in IAM_PRIVILEGE_ESCALATION.data_sources
+
 
 class TestGuardDutyGeneralPlaybook:
     def test_has_name_and_description(self):
@@ -100,6 +122,11 @@ class TestGuardDutyGeneralPlaybook:
     def test_has_investigation_steps(self):
         assert len(GUARDDUTY_GENERAL.investigation_steps) > 0
 
+    def test_has_data_sources(self):
+        assert len(GUARDDUTY_GENERAL.data_sources) > 0
+        assert "guardduty" in GUARDDUTY_GENERAL.data_sources
+        assert "cloudtrail" in GUARDDUTY_GENERAL.data_sources
+
 
 class TestRansomwarePlaybook:
     def test_has_name_and_description(self):
@@ -112,6 +139,11 @@ class TestRansomwarePlaybook:
 
     def test_has_mitre_techniques(self):
         assert "T1486" in RANSOMWARE.mitre_techniques
+
+    def test_has_data_sources(self):
+        assert len(RANSOMWARE.data_sources) > 0
+        assert "vpc_flow_logs" in RANSOMWARE.data_sources
+        assert "ec2" in RANSOMWARE.data_sources
 
 
 # ---------------------------------------------------------------------------
