@@ -28,7 +28,9 @@ from typing import Any
 import boto3
 from botocore.exceptions import ClientError
 
-# Ensure the repository root is on the path so the shared package is importable.
+# Ensure the repository root is on the path so the shared package is importable
+# during local development and testing.  In production, the shared code is
+# available via the Lambda Layer mounted at /opt/python/.
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
