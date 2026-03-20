@@ -40,6 +40,7 @@ Step Functions State Machine
       │           ec2_metadata.json
       │
       ├─► Lambda: ai_analysis
+      │       Selects scenario-specific playbook
       │       Invokes Amazon Bedrock (Claude)
       │       Returns structured verdict:
       │           TRUE_POSITIVE | FALSE_POSITIVE | INCONCLUSIVE
@@ -62,17 +63,57 @@ Step Functions State Machine
 ```
 cohort/
 ├── lambdas/
-│   ├── enrich_alert/       # Step 1: Fetch GuardDuty + CloudTrail + EC2/IAM context
-│   ├── collect_artifacts/  # Step 2: Download and store raw log artifacts in S3
-│   ├── ai_analysis/        # Step 3: Amazon Bedrock AI analysis and verdict
-│   ├── store_artifacts/    # Step 4: Write AI recommendation and full summary to S3
-│   └── notify_siem/        # Step 5: Send verdict back to Google SecOps
-├── terraform/              # Terraform IaC (EventBridge, Step Functions, Lambda, S3, IAM)
-├── tests/                  # pytest unit tests for all Lambda functions
-├── requirements.txt        # Runtime Python dependencies
-├── requirements-dev.txt    # Development/test dependencies
-└── pytest.ini              # pytest configuration
+│   ├── enrich_alert/            # Step 1: Fetch GuardDuty + CloudTrail + EC2/IAM context
+│   ├── collect_artifacts/       # Step 2: Download and store raw log artifacts in S3
+│   ├── ai_analysis/             # Step 3: Amazon Bedrock AI analysis with playbook guidance
+│   ├── store_artifacts/         # Step 4: Write AI recommendation and full summary to S3
+│   └── notify_siem/             # Step 5: Send verdict back to Google SecOps
+├── playbooks/                   # Incident response playbook definitions
+│   ├── base.py                  #   Playbook dataclass (frozen, immutable)
+│   ├── registry.py              #   select_playbook() – matches finding type to playbook
+│   ├── guardduty_general.py     #   Generic fallback playbook
+│   ├── iam_privilege_escalation.py  # IAM privilege-escalation playbook
+│   └── ransomware.py            #   Ransomware / destructive-activity playbook
+├── shared/                      # Reusable modules deployed as a Lambda Layer
+│   ├── cloudtrail_queries.py    #   CloudTrail event lookup and parsing helpers
+│   └── cloudwatch_queries.py    #   CloudWatch Logs Insights query orchestration
+├── terraform/                   # Terraform IaC (EventBridge, Step Functions, Lambda, S3, IAM)
+│   └── modules/
+│       └── enrichment_lambda/   #   Reusable Lambda module template
+├── tests/                       # pytest unit tests (140 tests across 8 files)
+├── assets/                      # Project images (logo SVG)
+├── requirements.txt             # Runtime Python dependencies (boto3)
+├── requirements-dev.txt         # Dev/test dependencies (pytest, moto)
+└── pytest.ini                   # pytest configuration
 ```
+
+---
+
+## Playbooks
+
+The AI analysis step uses **scenario-specific playbooks** to guide the LLM's
+reasoning. Each playbook is a frozen dataclass containing investigation steps,
+key indicators, response actions, and MITRE ATT&CK technique references.
+
+| Playbook | Triggers on | Data Sources |
+|---|---|---|
+| **IAM Privilege Escalation** | `UnauthorizedAccess:IAMUser`, `PrivilegeEscalation`, `Policy:IAMUser`, … | GuardDuty, CloudTrail, CloudWatch, IAM |
+| **Ransomware / Destructive** | `CryptoCurrency`, `Trojan`, `Malware`, `Backdoor`, `Impact:EC2`, … | GuardDuty, CloudTrail, CloudWatch, VPC Flow Logs, EC2 |
+| **GuardDuty General** | *(fallback for unmatched finding types)* | GuardDuty, CloudTrail, CloudWatch, VPC Flow Logs |
+
+Selection is handled by `playbooks/registry.py` which matches the GuardDuty
+finding type against each playbook's `finding_type_patterns` list (most specific
+first). If no pattern matches, the general playbook is used.
+
+---
+
+## Shared Lambda Layer
+
+The `shared/` package is deployed as an AWS Lambda Layer and mounted at
+`/opt/python/` on all five Lambda functions. It contains reusable helpers:
+
+- **`cloudtrail_queries.py`** – `lookup_cloudtrail_events()`, `resolve_lookup_attribute()`, `extract_source_ip()`
+- **`cloudwatch_queries.py`** – `run_insights_query()`, `find_log_groups()`, `wait_for_query_results()`, `parse_insights_results()`
 
 ---
 
