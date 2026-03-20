@@ -3,7 +3,7 @@ playbooks/iam_privilege_escalation.py
 
 Playbook for IAM privilege-escalation incidents.
 
-Covers GuardDuty findings related to unauthorised policy changes,
+Covers GuardDuty findings related to unauthorized policy changes,
 credential abuse, and privilege-escalation attempts.
 """
 
@@ -15,7 +15,7 @@ IAM_PRIVILEGE_ESCALATION = Playbook(
     name="IAM Privilege Escalation",
     description=(
         "Investigates potential IAM privilege-escalation activity, including "
-        "unauthorised policy attachments, role assumption from unexpected "
+        "unauthorized policy attachments, role assumption from unexpected "
         "principals, and credential misuse."
     ),
     finding_type_patterns=[

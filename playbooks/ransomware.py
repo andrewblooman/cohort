@@ -41,7 +41,7 @@ RANSOMWARE = Playbook(
     key_indicators=[
         "DNS queries to cryptocurrency mining pools",
         "Connections to known command-and-control infrastructure",
-        "High CPU utilisation inconsistent with the instance's normal workload",
+        "High CPU utilization inconsistent with the instance's normal workload",
         "Mass S3 object deletion or encryption activity",
         "Unexpected EBS snapshot creation or cross-account sharing",
         "New or modified cron jobs, systemd services, or startup scripts",
@@ -51,7 +51,7 @@ RANSOMWARE = Playbook(
         "Immediately isolate the affected instance by replacing its security group with a deny-all group",
         "Create an EBS snapshot for forensic analysis before terminating the instance",
         "Revoke and rotate all credentials associated with the instance profile",
-        "Check for and revoke any unauthorised cross-account access or resource sharing",
+        "Check for and revoke any unauthorized cross-account access or resource sharing",
         "Scan other instances in the same VPC for indicators of lateral movement",
         "Restore affected data from known-good backups after confirming containment",
         "Engage the incident-response team and consider notifying law enforcement if data was exfiltrated",
