@@ -47,4 +47,10 @@ GUARDDUTY_GENERAL = Playbook(
         "T1105",   # Ingress Tool Transfer
         "T1571",   # Non-Standard Port
     ],
+    data_sources=[
+        "guardduty",
+        "cloudtrail",
+        "cloudwatch",
+        "vpc_flow_logs",
+    ],
 )

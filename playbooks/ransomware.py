@@ -64,4 +64,11 @@ RANSOMWARE = Playbook(
         "T1059",   # Command and Scripting Interpreter
         "T1570",   # Lateral Tool Transfer
     ],
+    data_sources=[
+        "guardduty",
+        "cloudtrail",
+        "cloudwatch",
+        "vpc_flow_logs",
+        "ec2",
+    ],
 )

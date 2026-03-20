@@ -59,4 +59,10 @@ IAM_PRIVILEGE_ESCALATION = Playbook(
         "T1484",   # Domain Policy Modification
         "T1548",   # Abuse Elevation Control Mechanism
     ],
+    data_sources=[
+        "guardduty",
+        "cloudtrail",
+        "cloudwatch",
+        "iam",
+    ],
 )

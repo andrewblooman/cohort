@@ -29,6 +29,10 @@ class Playbook:
         key_indicators:         Indicators the analyst / LLM should look for.
         response_actions:       Recommended response actions for the scenario.
         mitre_techniques:       Relevant MITRE ATT&CK technique IDs.
+        data_sources:           AWS data sources required by this playbook
+                                (e.g. ``["cloudtrail", "cloudwatch", "vpc_flow_logs"]``).
+                                Used to programmatically determine which enrichment
+                                queries to run for each scenario.
     """
 
     name: str
@@ -38,6 +42,7 @@ class Playbook:
     key_indicators: list[str] = field(default_factory=list)
     response_actions: list[str] = field(default_factory=list)
     mitre_techniques: list[str] = field(default_factory=list)
+    data_sources: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------
     # Prompt-fragment helpers
@@ -72,6 +77,12 @@ class Playbook:
                 "### Relevant MITRE ATT&CK Techniques\n"
             )
             lines.append(", ".join(self.mitre_techniques))
+            lines.append("")
+
+        if self.data_sources:
+            lines.append("### Required Data Sources\n")
+            for source in self.data_sources:
+                lines.append(f"- {source}")
             lines.append("")
 
         return "\n".join(lines)

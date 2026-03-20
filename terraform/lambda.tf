@@ -92,6 +92,7 @@ resource "aws_lambda_function" "enrich_alert" {
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_mb
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = local.lambda_common_env
@@ -114,6 +115,7 @@ resource "aws_lambda_function" "collect_artifacts" {
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_mb
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = local.lambda_common_env
@@ -136,6 +138,7 @@ resource "aws_lambda_function" "ai_analysis" {
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = 512
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = local.lambda_common_env
@@ -158,6 +161,7 @@ resource "aws_lambda_function" "store_artifacts" {
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_mb
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = local.lambda_common_env
@@ -180,6 +184,7 @@ resource "aws_lambda_function" "notify_siem" {
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_mb
+  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
     variables = local.lambda_common_env
