@@ -1,7 +1,7 @@
-# cohort – AI Agent Cloud Incident Response
+# Cohort – AI Agent Cloud Incident Response
 
 <p align="center">
-  <img src="repo_image.jpg" alt="Illustration of a soldier defending a castle with the AWS cloud inside the walls">
+  <img src="assets/repo_image.jpg" alt="Illustration of a soldier defending a castle with the AWS cloud inside the walls">
 </p>
 
 An automated, AI-assisted cloud incident response system that runs on AWS.
