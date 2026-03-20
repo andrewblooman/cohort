@@ -110,6 +110,79 @@ class TestInvokeBedrock:
 
 
 # ---------------------------------------------------------------------------
+# invoke_agentcore tests
+# ---------------------------------------------------------------------------
+
+class TestInvokeAgentcore:
+    def _make_mock_chunk(self, text: str) -> dict:
+        return {"chunk": {"bytes": text.encode("utf-8")}}
+
+    def test_assembles_chunks_into_single_string(self):
+        mock_client = MagicMock()
+        mock_client.invoke_agent.return_value = {
+            "completion": [
+                self._make_mock_chunk('{"verdict": "TRUE_POSITIVE"'),
+                self._make_mock_chunk(', "confidence": "HIGH"}'),
+            ]
+        }
+
+        with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_client):
+            with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+                result = ai_handler.invoke_agentcore("prompt", session_id="INC-001")
+
+        assert result == '{"verdict": "TRUE_POSITIVE", "confidence": "HIGH"}'
+
+    def test_passes_memory_store_id_when_configured(self):
+        mock_client = MagicMock()
+        mock_client.invoke_agent.return_value = {"completion": []}
+
+        with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_client):
+            with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+                with patch.object(ai_handler, "AGENTCORE_MEMORY_STORE_ID", "mem-abc123"):
+                    ai_handler.invoke_agentcore("prompt", session_id="INC-002")
+
+        call_kwargs = mock_client.invoke_agent.call_args[1]
+        assert call_kwargs["memoryId"] == "mem-abc123"
+        assert call_kwargs["sessionId"] == "INC-002"
+
+    def test_omits_memory_id_when_not_configured(self):
+        mock_client = MagicMock()
+        mock_client.invoke_agent.return_value = {"completion": []}
+
+        with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_client):
+            with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+                with patch.object(ai_handler, "AGENTCORE_MEMORY_STORE_ID", ""):
+                    ai_handler.invoke_agentcore("prompt", session_id="INC-003")
+
+        call_kwargs = mock_client.invoke_agent.call_args[1]
+        assert "memoryId" not in call_kwargs
+
+    def test_raises_on_client_error(self):
+        from botocore.exceptions import ClientError
+
+        mock_client = MagicMock()
+        mock_client.invoke_agent.side_effect = ClientError(
+            {"Error": {"Code": "ResourceNotFoundException", "Message": "Agent not found"}},
+            "InvokeAgent",
+        )
+
+        with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_client):
+            with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+                with pytest.raises(ClientError):
+                    ai_handler.invoke_agentcore("prompt", session_id="INC-004")
+
+    def test_handles_empty_completion_stream(self):
+        mock_client = MagicMock()
+        mock_client.invoke_agent.return_value = {"completion": []}
+
+        with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_client):
+            with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+                result = ai_handler.invoke_agentcore("prompt", session_id="INC-005")
+
+        assert result == ""
+
+
+# ---------------------------------------------------------------------------
 # build_analysis_prompt tests
 # ---------------------------------------------------------------------------
 
@@ -250,6 +323,24 @@ class TestParseBedrockResponse:
 # ---------------------------------------------------------------------------
 
 class TestLambdaHandler:
+    def test_routes_to_agentcore_when_arn_is_set(self):
+        """When AGENTCORE_AGENT_RUNTIME_ARN is configured, lambda_handler should
+        call invoke_agentcore instead of invoke_bedrock."""
+        mock_agent_client = MagicMock()
+        mock_agent_client.invoke_agent.return_value = {
+            "completion": [{"chunk": {"bytes": VALID_BEDROCK_RESPONSE.encode()}}]
+        }
+
+        with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"):
+            with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_agent_client):
+                result = ai_handler.lambda_handler(SAMPLE_EVENT, None)
+
+        assert result["verdict"] == "TRUE_POSITIVE"
+        assert result["ticket_number"] == "INC-003"
+        mock_agent_client.invoke_agent.assert_called_once()
+        call_kwargs = mock_agent_client.invoke_agent.call_args[1]
+        assert call_kwargs["sessionId"] == "INC-003"
+
     def test_returns_analysis_with_metadata(self):
         mock_client = MagicMock()
         mock_body = MagicMock()

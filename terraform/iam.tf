@@ -116,7 +116,7 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         ]
         Resource = "*"
       },
-      # Amazon Bedrock – invoke foundation model for AI analysis
+      # Amazon Bedrock – invoke foundation model directly (fallback) and via AgentCore
       {
         Sid    = "BedrockInvokeModel"
         Effect = "Allow"
@@ -125,6 +125,32 @@ resource "aws_iam_role_policy" "lambda_permissions" {
           "bedrock:InvokeModelWithResponseStream",
         ]
         Resource = "arn:aws:bedrock:*::foundation-model/*"
+      },
+      # Amazon Bedrock AgentCore – invoke agent and manage sessions
+      {
+        Sid    = "AgentCoreInvokeAgent"
+        Effect = "Allow"
+        Action = [
+          "bedrock-agent-runtime:InvokeAgent",
+          "bedrock-agent-runtime:InvokeInlineAgent",
+          "bedrock-agent-runtime:CreateSession",
+          "bedrock-agent-runtime:GetSession",
+          "bedrock-agent-runtime:DeleteSession",
+          "bedrock-agent-runtime:ListSessions",
+        ]
+        Resource = "*"
+      },
+      # Amazon Bedrock AgentCore – read and write incident memory
+      {
+        Sid    = "AgentCoreMemory"
+        Effect = "Allow"
+        Action = [
+          "bedrockagentcore:GetMemory",
+          "bedrockagentcore:PutMemory",
+          "bedrockagentcore:DeleteMemory",
+          "bedrockagentcore:ListMemories",
+        ]
+        Resource = "*"
       },
       # Secrets Manager – retrieve Google SecOps credentials
       {
@@ -253,6 +279,80 @@ resource "aws_iam_role_policy" "eventbridge_sfn_permissions" {
         Resource = [
           aws_sfn_state_machine.incident_response.arn,
         ]
+      },
+    ]
+  })
+}
+
+####################################
+# IAM Role – Bedrock AgentCore Runtime
+#
+# Assumed by the AgentCore managed runtime when executing the
+# incident-response agent.  Grants access to the Bedrock
+# foundation model, CloudWatch logging, and the memory store.
+####################################
+
+data "aws_iam_policy_document" "agentcore_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["bedrockagentcore.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
+resource "aws_iam_role" "agentcore_runtime" {
+  name               = "${var.project_name}-agentcore-runtime"
+  assume_role_policy = data.aws_iam_policy_document.agentcore_assume_role.json
+}
+
+resource "aws_iam_role_policy" "agentcore_runtime_permissions" {
+  name = "${var.project_name}-agentcore-runtime-permissions"
+  role = aws_iam_role.agentcore_runtime.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # Bedrock – invoke the configured foundation model
+      {
+        Sid    = "BedrockInvokeModel"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+        ]
+        Resource = "arn:aws:bedrock:*::foundation-model/*"
+      },
+      # AgentCore Memory – read and write cross-session incident memory
+      {
+        Sid    = "AgentCoreMemoryAccess"
+        Effect = "Allow"
+        Action = [
+          "bedrockagentcore:GetMemory",
+          "bedrockagentcore:PutMemory",
+          "bedrockagentcore:DeleteMemory",
+          "bedrockagentcore:ListMemories",
+        ]
+        Resource = "*"
+      },
+      # CloudWatch Logs – write runtime execution logs
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+        ]
+        Resource = "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/bedrockagentcore/*"
       },
     ]
   })
