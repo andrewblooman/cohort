@@ -67,3 +67,22 @@ output "shared_layer_version" {
   description = "Version number of the shared utilities Lambda Layer"
   value       = aws_lambda_layer_version.shared.version
 }
+
+####################################
+# Bedrock AgentCore outputs
+####################################
+
+output "agentcore_agent_runtime_id" {
+  description = "ID of the Bedrock AgentCore runtime"
+  value       = aws_bedrockagentcore_agent_runtime.incident_response.id
+}
+
+output "agentcore_agent_runtime_arn" {
+  description = "ARN of the Bedrock AgentCore runtime"
+  value       = aws_bedrockagentcore_agent_runtime.incident_response.arn
+}
+
+output "agentcore_memory_store_id" {
+  description = "ID of the Bedrock AgentCore memory store"
+  value       = aws_bedrockagentcore_memory_store.incident_memory.id
+}

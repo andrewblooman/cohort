@@ -4,20 +4,28 @@ ai_analysis/handler.py
 Lambda function: AI Analysis
 
 Third step in the incident-response Step Functions workflow.
-Uses Amazon Bedrock (Claude) to reason over the collected evidence and produce
+Uses Amazon Bedrock AgentCore (when configured) or Bedrock direct
+model invocation to reason over the collected evidence and produce
 a structured verdict:
 
   - TRUE_POSITIVE   – confirmed malicious activity
   - FALSE_POSITIVE  – benign activity, no threat
   - INCONCLUSIVE    – insufficient evidence to determine
 
-The function builds a rich prompt from the incident context and all collected
-enrichment data, invokes the Bedrock model, and parses the structured response.
-The full AI reasoning and recommendation are returned to the workflow so they
-can be stored and sent back to the SIEM.
+When AGENTCORE_AGENT_RUNTIME_ARN is set the function invokes the
+managed AgentCore runtime via ``bedrock-agent-runtime:InvokeAgent``,
+passing a per-incident ``sessionId`` (derived from ``ticket_number``)
+and the optional ``memoryId`` so the agent can recall context from
+previous incidents.  When the variable is empty the function falls
+back to a direct ``bedrock-runtime:InvokeModel`` call (original
+behaviour).
 
-A scenario-specific playbook is selected at runtime based on the GuardDuty
-finding type, providing the LLM with targeted investigation guidance.
+The full AI reasoning and recommendation are returned to the workflow
+so they can be stored and sent back to the SIEM.
+
+A scenario-specific playbook is selected at runtime based on the
+GuardDuty finding type, providing the LLM with targeted investigation
+guidance.
 """
 
 from __future__ import annotations
@@ -48,21 +56,80 @@ BEDROCK_MODEL_ID = os.environ.get(
     "anthropic.claude-3-5-sonnet-20240620-v1:0",
 )
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", "us-east-1")
+AGENTCORE_AGENT_RUNTIME_ARN = os.environ.get("AGENTCORE_AGENT_RUNTIME_ARN", "")
+AGENTCORE_MEMORY_STORE_ID = os.environ.get("AGENTCORE_MEMORY_STORE_ID", "")
 
 VALID_VERDICTS = {"TRUE_POSITIVE", "FALSE_POSITIVE", "INCONCLUSIVE"}
 VALID_CONFIDENCES = {"HIGH", "MEDIUM", "LOW"}
 
 
 # ---------------------------------------------------------------------------
-# Bedrock helpers
+# Bedrock clients
 # ---------------------------------------------------------------------------
 
 def _bedrock_client() -> Any:
     return boto3.client("bedrock-runtime", region_name=AWS_REGION)
 
 
+def _agent_runtime_client() -> Any:
+    return boto3.client("bedrock-agent-runtime", region_name=AWS_REGION)
+
+
+# ---------------------------------------------------------------------------
+# AgentCore invocation
+# ---------------------------------------------------------------------------
+
+def invoke_agentcore(prompt: str, session_id: str) -> str:
+    """Invoke the AgentCore runtime and return the aggregated completion text.
+
+    AgentCore streams a sequence of typed event chunks.  We collect all
+    ``chunk`` payloads and join them into a single string that downstream
+    parsers can handle identically to a direct InvokeModel response.
+
+    Args:
+        prompt:     The analysis prompt to send to the agent.
+        session_id: A stable identifier for this incident (ticket_number).
+                    AgentCore uses this to scope memory lookups so the agent
+                    can recall context from related previous incidents.
+
+    Returns:
+        The full agent response as a plain string.
+    """
+    client = _agent_runtime_client()
+
+    kwargs: dict[str, Any] = {
+        "agentRuntimeId": AGENTCORE_AGENT_RUNTIME_ARN,
+        "sessionId": session_id,
+        "inputText": prompt,
+        "idleSessionTTLInSeconds": int(os.environ.get("AGENTCORE_IDLE_SESSION_TTL", "3600")),
+    }
+    if AGENTCORE_MEMORY_STORE_ID:
+        kwargs["memoryId"] = AGENTCORE_MEMORY_STORE_ID
+
+    try:
+        response = client.invoke_agent(**kwargs)
+    except ClientError as exc:
+        logger.error("AgentCore InvokeAgent failed: %s", exc)
+        raise
+
+    # The response body is a streaming EventStream of typed chunks.
+    chunks: list[str] = []
+    for event in response.get("completion", []):
+        chunk = event.get("chunk", {})
+        bytes_data = chunk.get("bytes", b"")
+        if bytes_data:
+            chunks.append(bytes_data.decode("utf-8", errors="replace"))
+
+    full_text = "".join(chunks)
+    logger.info("AgentCore response assembled (%d chars from %d chunks)", len(full_text), len(chunks))
+    return full_text
+
+
 def invoke_bedrock(prompt: str) -> str:
-    """Invoke the configured Bedrock model and return the raw text response."""
+    """Invoke the configured Bedrock model directly and return the raw text response.
+
+    Used as a fallback when AGENTCORE_AGENT_RUNTIME_ARN is not set.
+    """
     client = _bedrock_client()
 
     request_body = {
@@ -291,13 +358,20 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
     Returns:
         Analysis dict with verdict, confidence, reasoning, and recommendations.
     """
-    logger.info("ai_analysis invoked for ticket=%s", event.get("ticket_number", "UNKNOWN"))
+    ticket_number = event.get("ticket_number", "UNKNOWN")
+    logger.info("ai_analysis invoked for ticket=%s", ticket_number)
 
     prompt = build_analysis_prompt(event)
     logger.info("Built analysis prompt (%d chars)", len(prompt))
 
-    raw_response = invoke_bedrock(prompt)
-    logger.info("Received Bedrock response (%d chars)", len(raw_response))
+    if AGENTCORE_AGENT_RUNTIME_ARN:
+        logger.info("Routing to Bedrock AgentCore runtime: %s", AGENTCORE_AGENT_RUNTIME_ARN)
+        raw_response = invoke_agentcore(prompt, session_id=ticket_number)
+    else:
+        logger.info("AgentCore not configured; using direct Bedrock InvokeModel")
+        raw_response = invoke_bedrock(prompt)
+
+    logger.info("Received model response (%d chars)", len(raw_response))
 
     analysis = parse_bedrock_response(raw_response)
 

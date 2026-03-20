@@ -75,6 +75,8 @@ locals {
     AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
     ENABLE_VPC_FLOW_LOG_COLLECTION       = tostring(var.enable_vpc_flow_log_collection)
     ENABLE_CLOUDTRAIL_COLLECTION         = tostring(var.enable_cloudtrail_collection)
+    AGENTCORE_AGENT_RUNTIME_ARN          = aws_bedrockagentcore_agent_runtime.incident_response.arn
+    AGENTCORE_MEMORY_STORE_ID            = aws_bedrockagentcore_memory_store.incident_memory.id
   }
 }
 

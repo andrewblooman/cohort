@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region to deploy resources into"
   type        = string
-  default     = "us-east-1"
+  default     = "eu-west-1"
 }
 
 variable "environment" {
@@ -87,4 +87,20 @@ variable "enable_cloudtrail_collection" {
   description = "When true, the collect-artifacts Lambda will query CloudTrail via CloudWatch Logs Insights"
   type        = bool
   default     = true
+}
+
+####################################
+# Bedrock AgentCore variables
+####################################
+
+variable "agentcore_memory_retention_days" {
+  description = "Number of days to retain events in the AgentCore memory store before expiry"
+  type        = number
+  default     = 90
+}
+
+variable "agentcore_idle_session_ttl_seconds" {
+  description = "Number of seconds an AgentCore session can be idle before it is automatically closed"
+  type        = number
+  default     = 3600
 }
