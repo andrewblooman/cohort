@@ -15,6 +15,9 @@ The function builds a rich prompt from the incident context and all collected
 enrichment data, invokes the Bedrock model, and parses the structured response.
 The full AI reasoning and recommendation are returned to the workflow so they
 can be stored and sent back to the SIEM.
+
+A scenario-specific playbook is selected at runtime based on the GuardDuty
+finding type, providing the LLM with targeted investigation guidance.
 """
 
 from __future__ import annotations
@@ -23,11 +26,19 @@ import json
 import logging
 import os
 import re
+import sys
 from datetime import datetime, timezone
 from typing import Any
 
 import boto3
 from botocore.exceptions import ClientError
+
+# Ensure the repository root is on the path so the playbooks package is importable.
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+from playbooks.registry import select_playbook  # noqa: E402
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -113,12 +124,19 @@ def build_analysis_prompt(event: dict) -> str:
     ct_logs_count = artifacts.get("cloudtrail_log_count", 0)
     s3_keys = artifacts.get("s3_keys", [])
 
+    # Select scenario-specific playbook
+    finding_type = finding.get("Type", "")
+    playbook = select_playbook(finding_type=finding_type, description=description)
+    playbook_section = playbook.format_prompt_section()
+
     # Truncate large objects to avoid exceeding context limits
     cloudtrail_sample = cloudtrail_events[:20] if len(cloudtrail_events) > 20 else cloudtrail_events
 
     prompt = f"""You are a cloud security incident responder with deep expertise in AWS, GuardDuty, CloudTrail, and threat analysis.
 
 You have been presented with a security alert that requires investigation. Your task is to analyse all available evidence and provide a structured verdict.
+
+{playbook_section}
 
 ## INCIDENT SUMMARY
 
@@ -283,16 +301,26 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
 
     analysis = parse_bedrock_response(raw_response)
 
+    # Resolve the playbook that was used so it can be recorded in the output.
+    enrichment = event.get("enrichment_result", {})
+    if isinstance(enrichment, dict) and "enrichment" in enrichment:
+        enrichment = enrichment["enrichment"]
+    finding_type = enrichment.get("finding", {}).get("Type", "")
+    description = event.get("description", "")
+    playbook = select_playbook(finding_type=finding_type, description=description)
+
     analysis["ticket_number"] = event.get("ticket_number", "UNKNOWN")
     analysis["finding_id"] = event.get("finding_id", "")
     analysis["model_id"] = BEDROCK_MODEL_ID
+    analysis["playbook"] = playbook.name
     analysis["analysis_timestamp"] = datetime.now(tz=timezone.utc).isoformat()
 
     logger.info(
-        "Analysis complete: ticket=%s verdict=%s confidence=%s",
+        "Analysis complete: ticket=%s verdict=%s confidence=%s playbook=%s",
         analysis["ticket_number"],
         analysis["verdict"],
         analysis["confidence"],
+        analysis["playbook"],
     )
 
     return analysis
