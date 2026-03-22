@@ -187,7 +187,10 @@ resource "aws_sfn_state_machine" "incident_response" {
               verdict           = "INCONCLUSIVE"
               confidence        = "LOW"
               reasoning         = "AI analysis failed. Manual investigation required."
-              recommendations   = ["Review GuardDuty finding manually"]
+              proposed_actions  = ["Review GuardDuty finding manually"]
+              approval_required = true
+              approval_status   = "PENDING_HUMAN_APPROVAL"
+              actions_taken     = []
               error             = "AI analysis step encountered an error"
             }
           }
@@ -233,7 +236,7 @@ resource "aws_sfn_state_machine" "incident_response" {
 
       NotifySIEM = {
         Type     = "Task"
-        Resource = "arn:aws:states:::lambda:invoke"
+        Resource = "arn:aws:states:::lambda:invoke.waitForTaskToken"
         Parameters = {
           FunctionName = aws_lambda_function.notify_siem.arn
           Payload = {
@@ -242,12 +245,126 @@ resource "aws_sfn_state_machine" "incident_response" {
             "secops_case_id.$"    = "$.secops_case_id"
             "analysis_result.$"   = "$.analysis_result"
             "store_result.$"      = "$.store_result"
+            "task_token.$"        = "$$.Task.Token"
+            notify_mode           = "investigation"
+          }
+        }
+        # Workflow pauses here until the analyst calls approve_actions with this task token.
+        # The 7-day window gives analysts time to review; after expiry it fails gracefully.
+        TimeoutSeconds = 604800
+        ResultPath     = "$.approval_result"
+        Retry = [
+          {
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
+            IntervalSeconds = 2
+            MaxAttempts     = 2
+            BackoffRate     = 2
+          }
+        ]
+        Catch = [
+          {
+            ErrorEquals = ["States.Timeout", "States.HeartbeatTimeout"]
+            Next        = "HandleApprovalTimeout"
+            ResultPath  = "$.approval_error"
+          },
+          {
+            ErrorEquals = ["AnalystRejected"]
+            Next        = "HandleAnalystRejection"
+            ResultPath  = "$.approval_error"
+          },
+          {
+            ErrorEquals = ["States.ALL"]
+            Next        = "WorkflowComplete"
+            ResultPath  = "$.notify_error"
+          }
+        ]
+        Next = "ExecuteApprovedActions"
+      }
+
+      HandleApprovalTimeout = {
+        Type = "Pass"
+        Parameters = {
+          "ticket_number.$"  = "$.ticket_number"
+          "secops_case_id.$" = "$.secops_case_id"
+          timeout_reason     = "Analyst approval window expired after 7 days. No actions were executed."
+        }
+        Next = "WorkflowComplete"
+      }
+
+      HandleAnalystRejection = {
+        Type = "Pass"
+        Parameters = {
+          "ticket_number.$"  = "$.ticket_number"
+          "secops_case_id.$" = "$.secops_case_id"
+          rejection_reason   = "Analyst declined to authorise proposed actions. No actions were executed."
+        }
+        Next = "WorkflowComplete"
+      }
+
+      ExecuteApprovedActions = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = aws_lambda_function.execute_actions.arn
+          Payload = {
+            "ticket_number.$"   = "$.ticket_number"
+            "secops_case_id.$"  = "$.secops_case_id"
+            "approval_result.$" = "$.approval_result"
           }
         }
         ResultSelector = {
-          "notify.$" = "$.Payload"
+          "execution.$" = "$.Payload"
         }
-        ResultPath = "$.notify_result"
+        ResultPath = "$.execution_result"
+        Retry = [
+          {
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
+            IntervalSeconds = 5
+            MaxAttempts     = 2
+            BackoffRate     = 2
+          }
+        ]
+        Catch = [
+          {
+            ErrorEquals = ["States.ALL"]
+            Next        = "HandleExecutionFailure"
+            ResultPath  = "$.execution_error"
+          }
+        ]
+        Next = "NotifyExecution"
+      }
+
+      HandleExecutionFailure = {
+        Type = "Pass"
+        Parameters = {
+          "ticket_number.$"  = "$.ticket_number"
+          "secops_case_id.$" = "$.secops_case_id"
+          execution_result = {
+            execution = {
+              total_actions = 0
+              succeeded     = 0
+              failed        = 0
+              results       = []
+              error         = "Execution step failed — manual remediation may be required"
+            }
+          }
+        }
+        Next = "NotifyExecution"
+      }
+
+      NotifyExecution = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = aws_lambda_function.notify_siem.arn
+          Payload = {
+            "ticket_number.$"    = "$.ticket_number"
+            "secops_case_id.$"   = "$.secops_case_id"
+            "execution_result.$" = "$.execution_result"
+            notify_mode          = "execution_results"
+          }
+        }
+        ResultPath = null
         Retry = [
           {
             ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
@@ -260,7 +377,7 @@ resource "aws_sfn_state_machine" "incident_response" {
           {
             ErrorEquals = ["States.ALL"]
             Next        = "WorkflowComplete"
-            ResultPath  = "$.notify_error"
+            ResultPath  = "$.execution_notify_error"
           }
         ]
         Next = "WorkflowComplete"

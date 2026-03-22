@@ -259,6 +259,9 @@ Carefully analyse all the evidence above. Apply the following reasoning framewor
 5. **Consider false-positive indicators**: Common false positives include security scanning tools, penetration tests, known automation, or expected administrative activity.
 6. **Weigh all evidence**: Provide a balanced assessment.
 
+**IMPORTANT — HUMAN-IN-THE-LOOP REQUIREMENT:**
+You are an investigator and analyst ONLY. You MUST NOT take any remediation actions, execute commands, modify resources, or imply that any action has been or will be taken automatically. Your sole role is to investigate the evidence and reason about it. All actions in `proposed_actions` are PROPOSALS that require explicit approval from a human analyst before anything is executed. Frame every proposed action as a recommendation for human review, not as a directive or an action you are taking.
+
 Provide your response in the following **exact JSON format** (do not include any text outside the JSON):
 
 ```json
@@ -269,8 +272,9 @@ Provide your response in the following **exact JSON format** (do not include any
   "threat_summary": "<one-paragraph summary of the threat or why it is benign>",
   "indicators_of_compromise": ["<list of IoCs if TRUE_POSITIVE, else empty>"],
   "false_positive_indicators": ["<list of FP indicators if FALSE_POSITIVE, else empty>"],
-  "recommendations": ["<list of specific recommended actions>"],
-  "mitre_attack_techniques": ["<relevant MITRE ATT&CK technique IDs if applicable>"]
+  "proposed_actions": ["<list of specific proposed remediation actions for analyst review — NOT automatically executed>"],
+  "mitre_attack_techniques": ["<relevant MITRE ATT&CK technique IDs if applicable>"],
+  "approval_required": true
 }}
 ```
 
@@ -278,7 +282,8 @@ Remember:
 - Use ONLY the verdicts: TRUE_POSITIVE, FALSE_POSITIVE, or INCONCLUSIVE
 - Be specific and evidence-based in your reasoning
 - If evidence is insufficient for a confident verdict, use INCONCLUSIVE
-- Recommendations should be actionable and specific to the evidence"""
+- `proposed_actions` must be framed as proposals for human approval, never as automated steps
+- `approval_required` must always be `true`"""
 
     return prompt
 
@@ -321,10 +326,20 @@ def parse_bedrock_response(raw_response: str) -> dict:
         confidence = "LOW"
     result["confidence"] = confidence
 
+    # Normalise proposed_actions: accept either the new field name or the legacy
+    # "recommendations" key that older model responses may still return.
+    if "proposed_actions" not in result and "recommendations" in result:
+        result["proposed_actions"] = result.pop("recommendations")
+    elif "proposed_actions" not in result:
+        result["proposed_actions"] = []
+
     # Ensure list fields are lists
-    for list_field in ("indicators_of_compromise", "false_positive_indicators", "recommendations", "mitre_attack_techniques"):
+    for list_field in ("indicators_of_compromise", "false_positive_indicators", "proposed_actions", "mitre_attack_techniques"):
         if not isinstance(result.get(list_field), list):
             result[list_field] = []
+
+    # Always enforce approval_required = True regardless of what the model returned
+    result["approval_required"] = True
 
     return result
 
@@ -338,8 +353,11 @@ def _fallback_inconclusive(reason: str) -> dict:
         "threat_summary": "AI analysis could not be completed. Manual review required.",
         "indicators_of_compromise": [],
         "false_positive_indicators": [],
-        "recommendations": ["Perform manual investigation of the GuardDuty finding"],
+        "proposed_actions": ["Perform manual investigation of the GuardDuty finding"],
         "mitre_attack_techniques": [],
+        "approval_required": True,
+        "approval_status": "PENDING_HUMAN_APPROVAL",
+        "actions_taken": [],
     }
 
 
@@ -385,9 +403,19 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
 
     analysis["ticket_number"] = event.get("ticket_number", "UNKNOWN")
     analysis["finding_id"] = event.get("finding_id", "")
-    analysis["model_id"] = BEDROCK_MODEL_ID
+    # Report the model that was actually invoked: the AgentCore runtime ARN in
+    # managed mode, or the direct Bedrock model ID in fallback mode.
+    if AGENTCORE_AGENT_RUNTIME_ARN:
+        analysis["model_id"] = f"agentcore:{AGENTCORE_AGENT_RUNTIME_ARN}"
+    else:
+        analysis["model_id"] = BEDROCK_MODEL_ID
     analysis["playbook"] = playbook.name
     analysis["analysis_timestamp"] = datetime.now(tz=timezone.utc).isoformat()
+    # Human-in-the-loop enforcement: no automated actions are ever taken.
+    # All proposed_actions require explicit analyst approval before execution.
+    analysis["approval_required"] = True
+    analysis["approval_status"] = "PENDING_HUMAN_APPROVAL"
+    analysis["actions_taken"] = []
 
     logger.info(
         "Analysis complete: ticket=%s verdict=%s confidence=%s playbook=%s",

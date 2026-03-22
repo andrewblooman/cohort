@@ -74,15 +74,64 @@ output "shared_layer_version" {
 
 output "agentcore_agent_runtime_id" {
   description = "ID of the Bedrock AgentCore runtime"
-  value       = aws_bedrockagentcore_agent_runtime.incident_response.id
+  value       = aws_bedrockagentcore_agent_runtime.incident_response.agent_runtime_id
 }
 
 output "agentcore_agent_runtime_arn" {
   description = "ARN of the Bedrock AgentCore runtime"
-  value       = aws_bedrockagentcore_agent_runtime.incident_response.arn
+  value       = aws_bedrockagentcore_agent_runtime.incident_response.agent_runtime_arn
 }
 
 output "agentcore_memory_store_id" {
   description = "ID of the Bedrock AgentCore memory store"
-  value       = aws_bedrockagentcore_memory_store.incident_memory.id
+  value       = aws_bedrockagentcore_memory.incident_memory.id
+}
+
+output "approve_actions_lambda_arn" {
+  description = "ARN of the approve-actions Lambda (HITL callback — call to resume a paused workflow)"
+  value       = aws_lambda_function.approve_actions.arn
+}
+
+output "execute_actions_lambda_arn" {
+  description = "ARN of the execute-actions Lambda (invoked only by Step Functions after analyst approval)"
+  value       = aws_lambda_function.execute_actions.arn
+}
+
+output "approval_api_endpoint" {
+  description = "HTTPS endpoint analysts use to approve or reject proposed incident-response actions"
+  value       = "${aws_apigatewayv2_api.approval.api_endpoint}/approve"
+}
+
+####################################
+# Web UI outputs
+####################################
+
+output "ui_cloudfront_url" {
+  description = "HTTPS URL of the Cohort analyst dashboard (CloudFront)"
+  value       = "https://${aws_cloudfront_distribution.ui.domain_name}"
+}
+
+output "ui_s3_bucket" {
+  description = "S3 bucket hosting the Cohort web UI static assets"
+  value       = aws_s3_bucket.ui.id
+}
+
+output "list_investigations_lambda_arn" {
+  description = "ARN of the list-investigations Lambda (web UI)"
+  value       = aws_lambda_function.list_investigations.arn
+}
+
+output "get_investigation_lambda_arn" {
+  description = "ARN of the get-investigation Lambda (web UI)"
+  value       = aws_lambda_function.get_investigation.arn
+}
+
+output "rerun_analysis_lambda_arn" {
+  description = "ARN of the rerun-analysis Lambda (web UI)"
+  value       = aws_lambda_function.rerun_analysis.arn
+}
+
+output "investigations_api_endpoint" {
+  description = "HTTPS base URL for the Cohort investigations API"
+  value       = "${aws_apigatewayv2_api.approval.api_endpoint}/investigations"
 }

@@ -172,6 +172,91 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         ]
         Resource = "*"
       },
+      # Step Functions – used by the web UI Lambdas to list/describe/start/stop executions
+      {
+        Sid    = "StepFunctionsWebUI"
+        Effect = "Allow"
+        Action = [
+          "states:ListExecutions",
+          "states:DescribeExecution",
+          "states:StopExecution",
+          "states:StartExecution",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}
+
+####################################
+# IAM Role – execute_actions Lambda
+#
+# Separate dedicated role with only the mutating permissions required for
+# remediation.  Kept intentionally narrower than the shared lambda_exec role
+# to enforce least-privilege for the only Lambda that makes write API calls.
+####################################
+
+resource "aws_iam_role" "execute_actions" {
+  name               = "${var.project_name}-execute-actions"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "execute_actions_basic_execution" {
+  role       = aws_iam_role.execute_actions.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "execute_actions_permissions" {
+  name = "${var.project_name}-execute-actions-permissions"
+  role = aws_iam_role.execute_actions.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # EC2 – remediation actions (isolation, stop, snapshot)
+      {
+        Sid    = "EC2Remediation"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeInstances",
+          "ec2:DescribeSecurityGroups",
+          "ec2:ModifyInstanceAttribute",
+          "ec2:StopInstances",
+          "ec2:CreateSnapshot",
+          "ec2:CreateSecurityGroup",
+          "ec2:RevokeSecurityGroupEgress",
+          "ec2:CreateTags",
+        ]
+        Resource = "*"
+      },
+      # IAM – remediation actions (key deactivation, session revocation)
+      {
+        Sid    = "IAMRemediation"
+        Effect = "Allow"
+        Action = [
+          "iam:UpdateAccessKey",
+          "iam:PutRolePolicy",
+        ]
+        Resource = "*"
+      },
+      # GuardDuty – archive resolved findings
+      {
+        Sid    = "GuardDutyArchive"
+        Effect = "Allow"
+        Action = [
+          "guardduty:ArchiveFindings",
+        ]
+        Resource = "*"
+      },
+      # S3 – block public access on buckets
+      {
+        Sid    = "S3BlockPublicAccess"
+        Effect = "Allow"
+        Action = [
+          "s3:PutBucketPublicAccessBlock",
+        ]
+        Resource = "*"
+      },
     ]
   })
 }
@@ -214,6 +299,7 @@ resource "aws_iam_role_policy" "sfn_permissions" {
           aws_lambda_function.ai_analysis.arn,
           aws_lambda_function.store_artifacts.arn,
           aws_lambda_function.notify_siem.arn,
+          aws_lambda_function.execute_actions.arn,
         ]
       },
       {

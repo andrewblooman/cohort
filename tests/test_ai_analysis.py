@@ -68,12 +68,13 @@ VALID_BEDROCK_RESPONSE = json.dumps({
     "threat_summary": "EC2 instance is performing unauthorized cryptocurrency mining.",
     "indicators_of_compromise": ["DNS queries to pool.minexmr.com", "High CPU utilization"],
     "false_positive_indicators": [],
-    "recommendations": [
+    "proposed_actions": [
         "Isolate the EC2 instance immediately",
         "Rotate any IAM credentials associated with the instance profile",
         "Review how the instance was compromised",
     ],
     "mitre_attack_techniques": ["T1496"],
+    "approval_required": True,
 })
 
 
@@ -232,7 +233,7 @@ class TestParseBedrockResponse:
         result = ai_handler.parse_bedrock_response(VALID_BEDROCK_RESPONSE)
         assert result["verdict"] == "TRUE_POSITIVE"
         assert result["confidence"] == "HIGH"
-        assert len(result["recommendations"]) == 3
+        assert len(result["proposed_actions"]) == 3
 
     def test_parses_json_in_code_block(self):
         response = f"Here is my analysis:\n```json\n{VALID_BEDROCK_RESPONSE}\n```"
@@ -247,7 +248,7 @@ class TestParseBedrockResponse:
             "threat_summary": "summary",
             "indicators_of_compromise": [],
             "false_positive_indicators": [],
-            "recommendations": [],
+            "proposed_actions": [],
             "mitre_attack_techniques": [],
         })
         result = ai_handler.parse_bedrock_response(response)
@@ -262,7 +263,7 @@ class TestParseBedrockResponse:
             "threat_summary": "test",
             "indicators_of_compromise": [],
             "false_positive_indicators": [],
-            "recommendations": [],
+            "proposed_actions": [],
             "mitre_attack_techniques": [],
         })
         result = ai_handler.parse_bedrock_response(response)
@@ -281,11 +282,11 @@ class TestParseBedrockResponse:
             "threat_summary": "Summary.",
             "indicators_of_compromise": "none",  # wrong type
             "false_positive_indicators": "none",  # wrong type
-            "recommendations": "review logs",  # wrong type
-            "mitre_attack_techniques": None,  # null
+            "proposed_actions": "review logs",   # wrong type
+            "mitre_attack_techniques": None,     # null
         })
         result = ai_handler.parse_bedrock_response(response)
-        for field in ("indicators_of_compromise", "false_positive_indicators", "recommendations", "mitre_attack_techniques"):
+        for field in ("indicators_of_compromise", "false_positive_indicators", "proposed_actions", "mitre_attack_techniques"):
             assert isinstance(result[field], list), f"{field} should be a list"
 
     def test_handles_false_positive_verdict(self):
@@ -296,7 +297,7 @@ class TestParseBedrockResponse:
             "threat_summary": "Benign activity.",
             "indicators_of_compromise": [],
             "false_positive_indicators": ["Known security scanner IP"],
-            "recommendations": ["No action required"],
+            "proposed_actions": ["No action required"],
             "mitre_attack_techniques": [],
         })
         result = ai_handler.parse_bedrock_response(response)
@@ -311,11 +312,43 @@ class TestParseBedrockResponse:
             "threat_summary": "Cannot determine.",
             "indicators_of_compromise": [],
             "false_positive_indicators": [],
-            "recommendations": ["Gather more logs"],
+            "proposed_actions": ["Gather more logs"],
             "mitre_attack_techniques": [],
         })
         result = ai_handler.parse_bedrock_response(response)
         assert result["verdict"] == "INCONCLUSIVE"
+
+    def test_normalises_legacy_recommendations_field(self):
+        """Old model responses using 'recommendations' are mapped to 'proposed_actions'."""
+        response = json.dumps({
+            "verdict": "TRUE_POSITIVE",
+            "confidence": "HIGH",
+            "reasoning": "Evidence is clear.",
+            "threat_summary": "Confirmed threat.",
+            "indicators_of_compromise": [],
+            "false_positive_indicators": [],
+            "recommendations": ["Isolate instance"],  # legacy field name
+            "mitre_attack_techniques": [],
+        })
+        result = ai_handler.parse_bedrock_response(response)
+        assert result["proposed_actions"] == ["Isolate instance"]
+        assert "recommendations" not in result
+
+    def test_approval_required_always_true(self):
+        """approval_required must always be True regardless of model output."""
+        response = json.dumps({
+            "verdict": "FALSE_POSITIVE",
+            "confidence": "HIGH",
+            "reasoning": "Routine activity.",
+            "threat_summary": "Benign.",
+            "indicators_of_compromise": [],
+            "false_positive_indicators": [],
+            "proposed_actions": [],
+            "mitre_attack_techniques": [],
+            "approval_required": False,  # model tried to set this to False
+        })
+        result = ai_handler.parse_bedrock_response(response)
+        assert result["approval_required"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -357,6 +390,52 @@ class TestLambdaHandler:
         assert result["finding_id"] == "def789"
         assert "model_id" in result
         assert "analysis_timestamp" in result
+
+    def test_output_includes_hitl_fields(self):
+        """lambda_handler output must always include HITL enforcement fields."""
+        mock_client = MagicMock()
+        mock_body = MagicMock()
+        mock_body.read.return_value = json.dumps({
+            "content": [{"text": VALID_BEDROCK_RESPONSE}]
+        }).encode()
+        mock_client.invoke_model.return_value = {"body": mock_body}
+
+        with patch.object(ai_handler, "_bedrock_client", return_value=mock_client):
+            result = ai_handler.lambda_handler(SAMPLE_EVENT, None)
+
+        assert result["approval_required"] is True
+        assert result["approval_status"] == "PENDING_HUMAN_APPROVAL"
+        assert result["actions_taken"] == []
+
+    def test_model_id_reflects_direct_mode(self):
+        """In direct mode, model_id should be the Bedrock model ID."""
+        mock_client = MagicMock()
+        mock_body = MagicMock()
+        mock_body.read.return_value = json.dumps({
+            "content": [{"text": VALID_BEDROCK_RESPONSE}]
+        }).encode()
+        mock_client.invoke_model.return_value = {"body": mock_body}
+
+        with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", ""):
+            with patch.object(ai_handler, "BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-5-20250514-v1:0"):
+                with patch.object(ai_handler, "_bedrock_client", return_value=mock_client):
+                    result = ai_handler.lambda_handler(SAMPLE_EVENT, None)
+
+        assert result["model_id"] == "us.anthropic.claude-sonnet-4-5-20250514-v1:0"
+
+    def test_model_id_reflects_agentcore_mode(self):
+        """In AgentCore mode, model_id should be prefixed with 'agentcore:' and include the runtime ARN."""
+        runtime_arn = "arn:aws:bedrockagentcore:us-east-1:123456789012:agent-runtime/test"
+        mock_agent_client = MagicMock()
+        mock_agent_client.invoke_agent.return_value = {
+            "completion": [{"chunk": {"bytes": VALID_BEDROCK_RESPONSE.encode()}}]
+        }
+
+        with patch.object(ai_handler, "AGENTCORE_AGENT_RUNTIME_ARN", runtime_arn):
+            with patch.object(ai_handler, "_agent_runtime_client", return_value=mock_agent_client):
+                result = ai_handler.lambda_handler(SAMPLE_EVENT, None)
+
+        assert result["model_id"] == f"agentcore:{runtime_arn}"
 
     def test_returns_inconclusive_on_bedrock_error(self):
         from botocore.exceptions import ClientError

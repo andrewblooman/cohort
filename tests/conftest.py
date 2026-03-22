@@ -25,3 +25,8 @@ def aws_env_vars(monkeypatch):
     monkeypatch.setenv("GOOGLE_SECOPS_CREDENTIALS_SECRET_ARN", "")
     monkeypatch.setenv("ENABLE_VPC_FLOW_LOG_COLLECTION", "false")
     monkeypatch.setenv("ENABLE_CLOUDTRAIL_COLLECTION", "false")
+    monkeypatch.setenv("AGENTCORE_AGENT_RUNTIME_ARN", "")
+    monkeypatch.setenv(
+        "SFN_STATE_MACHINE_ARN",
+        "arn:aws:states:us-east-1:123456789012:stateMachine:cohort-incident-response",
+    )

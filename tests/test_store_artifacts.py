@@ -36,10 +36,12 @@ SAMPLE_ANALYSIS = {
     "threat_summary": "EC2 instance is performing cryptocurrency mining.",
     "indicators_of_compromise": ["DNS queries to pool.minexmr.com"],
     "false_positive_indicators": [],
-    "recommendations": ["Isolate the instance", "Rotate credentials"],
+    "proposed_actions": ["Isolate the instance", "Rotate credentials"],
     "mitre_attack_techniques": ["T1496"],
     "model_id": "anthropic.claude-3-5-sonnet-20240620-v1:0",
     "analysis_timestamp": "2024-01-15T10:30:00+00:00",
+    "approval_status": "PENDING_HUMAN_APPROVAL",
+    "actions_taken": [],
 }
 
 SAMPLE_EVENT = {
@@ -117,10 +119,15 @@ class TestBuildTextRecommendation:
         report = store_handler.build_text_recommendation(self.incident, SAMPLE_ANALYSIS)
         assert "TRUE POSITIVE" in report
 
-    def test_contains_recommendations(self):
+    def test_contains_proposed_actions(self):
         report = store_handler.build_text_recommendation(self.incident, SAMPLE_ANALYSIS)
         assert "Isolate the instance" in report
         assert "Rotate credentials" in report
+
+    def test_proposed_actions_awaiting_approval_label(self):
+        report = store_handler.build_text_recommendation(self.incident, SAMPLE_ANALYSIS)
+        assert "AWAITING ANALYST APPROVAL" in report
+        assert "NO AUTOMATED ACTIONS HAVE BEEN TAKEN" in report
 
     def test_contains_iocs(self):
         report = store_handler.build_text_recommendation(self.incident, SAMPLE_ANALYSIS)
@@ -139,7 +146,7 @@ class TestBuildTextRecommendation:
             "threat_summary": "This is routine activity.",
             "indicators_of_compromise": [],
             "false_positive_indicators": ["Known scanner IP 10.0.0.1"],
-            "recommendations": ["No action required"],
+            "proposed_actions": ["No action required"],
         }
         report = store_handler.build_text_recommendation(self.incident, analysis)
         assert "FALSE POSITIVE" in report
@@ -153,15 +160,15 @@ class TestBuildTextRecommendation:
             "threat_summary": "Insufficient evidence.",
             "indicators_of_compromise": [],
             "false_positive_indicators": [],
-            "recommendations": ["Gather more evidence"],
+            "proposed_actions": ["Gather more evidence"],
         }
         report = store_handler.build_text_recommendation(self.incident, analysis)
         assert "INCONCLUSIVE" in report
 
-    def test_handles_no_recommendations(self):
-        analysis = {**SAMPLE_ANALYSIS, "recommendations": []}
+    def test_handles_no_proposed_actions(self):
+        analysis = {**SAMPLE_ANALYSIS, "proposed_actions": []}
         report = store_handler.build_text_recommendation(self.incident, analysis)
-        assert "No specific recommendations" in report
+        assert "No specific actions proposed" in report
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +204,7 @@ class TestLambdaHandler:
 
         assert result["verdict"] == "TRUE_POSITIVE"
         assert result["confidence"] == "HIGH"
+        assert result["approval_status"] == "PENDING_HUMAN_APPROVAL"
 
     def test_raises_when_bucket_not_set(self):
         with patch.object(store_handler, "ARTIFACTS_BUCKET", ""):

@@ -32,6 +32,36 @@ data "archive_file" "notify_siem" {
   output_path = "${path.module}/../dist/notify_siem.zip"
 }
 
+data "archive_file" "approve_actions" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/approve_actions"
+  output_path = "${path.module}/../dist/approve_actions.zip"
+}
+
+data "archive_file" "execute_actions" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/execute_actions"
+  output_path = "${path.module}/../dist/execute_actions.zip"
+}
+
+data "archive_file" "list_investigations" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/list_investigations"
+  output_path = "${path.module}/../dist/list_investigations.zip"
+}
+
+data "archive_file" "get_investigation" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/get_investigation"
+  output_path = "${path.module}/../dist/get_investigation.zip"
+}
+
+data "archive_file" "rerun_analysis" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/rerun_analysis"
+  output_path = "${path.module}/../dist/rerun_analysis.zip"
+}
+
 ####################################
 # CloudWatch Log Groups for Lambdas
 ####################################
@@ -61,6 +91,31 @@ resource "aws_cloudwatch_log_group" "notify_siem" {
   retention_in_days = var.log_retention_days
 }
 
+resource "aws_cloudwatch_log_group" "approve_actions" {
+  name              = "/aws/lambda/${var.project_name}-approve-actions"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "execute_actions" {
+  name              = "/aws/lambda/${var.project_name}-execute-actions"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "list_investigations" {
+  name              = "/aws/lambda/${var.project_name}-list-investigations"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "get_investigation" {
+  name              = "/aws/lambda/${var.project_name}-get-investigation"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "rerun_analysis" {
+  name              = "/aws/lambda/${var.project_name}-rerun-analysis"
+  retention_in_days = var.log_retention_days
+}
+
 ####################################
 # Common Lambda environment variables
 ####################################
@@ -75,8 +130,8 @@ locals {
     AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
     ENABLE_VPC_FLOW_LOG_COLLECTION       = tostring(var.enable_vpc_flow_log_collection)
     ENABLE_CLOUDTRAIL_COLLECTION         = tostring(var.enable_cloudtrail_collection)
-    AGENTCORE_AGENT_RUNTIME_ARN          = aws_bedrockagentcore_agent_runtime.incident_response.arn
-    AGENTCORE_MEMORY_STORE_ID            = aws_bedrockagentcore_memory_store.incident_memory.id
+    AGENTCORE_AGENT_RUNTIME_ARN          = aws_bedrockagentcore_agent_runtime.incident_response.agent_runtime_arn
+    AGENTCORE_MEMORY_STORE_ID            = aws_bedrockagentcore_memory.incident_memory.id
   }
 }
 
@@ -193,4 +248,129 @@ resource "aws_lambda_function" "notify_siem" {
   }
 
   depends_on = [aws_cloudwatch_log_group.notify_siem]
+}
+
+####################################
+# Lambda – approve_actions
+####################################
+
+resource "aws_lambda_function" "approve_actions" {
+  function_name    = "${var.project_name}-approve-actions"
+  description      = "Human-in-the-loop callback: validates analyst approval and resumes the Step Functions workflow via send_task_success"
+  filename         = data.archive_file.approve_actions.output_path
+  source_code_hash = data.archive_file.approve_actions.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = 60
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION = var.aws_region
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.approve_actions]
+}
+
+####################################
+# Lambda – execute_actions
+####################################
+
+resource "aws_lambda_function" "execute_actions" {
+  function_name    = "${var.project_name}-execute-actions"
+  description      = "Executes analyst-approved remediation actions (EC2 isolation, IAM key deactivation, etc.) — only invoked after explicit human approval"
+  filename         = data.archive_file.execute_actions.output_path
+  source_code_hash = data.archive_file.execute_actions.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.execute_actions.arn
+  timeout          = var.lambda_timeout
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION = var.aws_region
+      ARTIFACTS_BUCKET   = aws_s3_bucket.artifacts.id
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.execute_actions]
+}
+
+####################################
+# Lambda – list_investigations (web UI)
+####################################
+
+resource "aws_lambda_function" "list_investigations" {
+  function_name    = "${var.project_name}-list-investigations"
+  description      = "Returns a list of recent incident-response executions for the Cohort web UI dashboard"
+  filename         = data.archive_file.list_investigations.output_path
+  source_code_hash = data.archive_file.list_investigations.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = 30
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION    = var.aws_region
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.incident_response.arn
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.list_investigations]
+}
+
+####################################
+# Lambda – get_investigation (web UI)
+####################################
+
+resource "aws_lambda_function" "get_investigation" {
+  function_name    = "${var.project_name}-get-investigation"
+  description      = "Returns full details for a single investigation from S3 + Step Functions for the Cohort web UI"
+  filename         = data.archive_file.get_investigation.output_path
+  source_code_hash = data.archive_file.get_investigation.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = 30
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION    = var.aws_region
+      ARTIFACTS_BUCKET      = aws_s3_bucket.artifacts.id
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.incident_response.arn
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.get_investigation]
+}
+
+####################################
+# Lambda – rerun_analysis (web UI)
+####################################
+
+resource "aws_lambda_function" "rerun_analysis" {
+  function_name    = "${var.project_name}-rerun-analysis"
+  description      = "Aborts an active investigation and starts a fresh Step Functions execution for the same ticket"
+  filename         = data.archive_file.rerun_analysis.output_path
+  source_code_hash = data.archive_file.rerun_analysis.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = 30
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION    = var.aws_region
+      SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.incident_response.arn
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.rerun_analysis]
 }

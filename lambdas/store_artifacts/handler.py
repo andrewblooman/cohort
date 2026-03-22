@@ -89,7 +89,7 @@ def build_text_recommendation(incident: dict, analysis: dict) -> str:
     threat_summary = analysis.get("threat_summary", "")
     iocs = analysis.get("indicators_of_compromise", [])
     fp_indicators = analysis.get("false_positive_indicators", [])
-    recommendations = analysis.get("recommendations", [])
+    proposed_actions = analysis.get("proposed_actions", analysis.get("recommendations", []))
     mitre = analysis.get("mitre_attack_techniques", [])
     model_id = analysis.get("model_id", "")
     analysis_ts = analysis.get("analysis_timestamp", datetime.now(tz=timezone.utc).isoformat())
@@ -155,14 +155,18 @@ def build_text_recommendation(incident: dict, analysis: dict) -> str:
         lines.append("")
 
     lines += [
-        "RECOMMENDED ACTIONS",
+        "⚠️  PROPOSED ACTIONS — AWAITING ANALYST APPROVAL",
+        "-" * 40,
+        "NOTICE: NO AUTOMATED ACTIONS HAVE BEEN TAKEN.",
+        "The following actions are PROPOSALS ONLY. Each must be explicitly reviewed",
+        "and authorized by a human analyst before any remediation is executed.",
         "-" * 40,
     ]
-    if recommendations:
-        for i, rec in enumerate(recommendations, start=1):
-            lines.append(f"  {i}. {rec}")
+    if proposed_actions:
+        for i, action in enumerate(proposed_actions, start=1):
+            lines.append(f"  {i}. [ ] PROPOSED: {action}")
     else:
-        lines.append("  No specific recommendations generated.")
+        lines.append("  No specific actions proposed.")
     lines.append("")
 
     lines += [
@@ -262,6 +266,7 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
 
     verdict = analysis.get("verdict", "INCONCLUSIVE")
     confidence = analysis.get("confidence", "LOW")
+    approval_status = analysis.get("approval_status", "PENDING_HUMAN_APPROVAL")
 
     result = {
         "ticket_number": ticket_number,
@@ -273,6 +278,7 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
         "summary_json_key": f"{prefix}incident_summary.json",
         "verdict": verdict,
         "confidence": confidence,
+        "approval_status": approval_status,
         "store_timestamp": datetime.now(tz=timezone.utc).isoformat(),
     }
 

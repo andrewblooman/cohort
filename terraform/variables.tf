@@ -41,9 +41,9 @@ variable "lambda_memory_mb" {
 }
 
 variable "bedrock_model_id" {
-  description = "Amazon Bedrock model ID used for AI incident analysis"
+  description = "Amazon Bedrock model ID (or cross-region inference profile) used for AI incident analysis. Newer Claude models require the 'us.' cross-region prefix."
   type        = string
-  default     = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+  default     = "us.anthropic.claude-sonnet-4-5-20250514-v1:0"
 }
 
 variable "google_secops_api_endpoint" {
@@ -103,4 +103,10 @@ variable "agentcore_idle_session_ttl_seconds" {
   description = "Number of seconds an AgentCore session can be idle before it is automatically closed"
   type        = number
   default     = 3600
+}
+
+variable "agentcore_container_tag" {
+  description = "Tag of the public.ecr.aws/bedrockagentcore/python-runtime image used by the AgentCore runtime. Pin to a specific digest or dated tag in production rather than 'latest'."
+  type        = string
+  default     = "latest"
 }

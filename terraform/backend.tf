@@ -1,4 +1,4 @@
-terraform {
+/*terraform {
   backend "s3" {
     bucket = "PLACEHOLDER_YOUR_TERRAFORM_STATE_BUCKET"
     key    = "cohort/terraform.tfstate"
@@ -7,3 +7,4 @@ terraform {
     use_lockfile = true
   }
 }
+*/

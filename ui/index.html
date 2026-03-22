@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cohort – Incident Response Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #0a0e1a;
+      --surface: #111827;
+      --surf2:   #1a2235;
+      --border:  #1e3a5f;
+      --cyan:    #00d4ff;
+      --green:   #00ff88;
+      --red:     #ff2d55;
+      --amber:   #ff8c00;
+      --text:    #e2e8f0;
+      --muted:   #4b5a72;
+
+      /* Bootstrap dark-mode overrides */
+      --bs-body-bg:            #0a0e1a;
+      --bs-body-color:         #e2e8f0;
+      --bs-card-bg:            #111827;
+      --bs-table-bg:           transparent;
+      --bs-table-hover-bg:     rgba(26,34,53,0.8);
+      --bs-table-border-color: rgba(30,58,95,0.45);
+      --bs-border-color:       #1e3a5f;
+      --bs-secondary-bg:       #111827;
+      --bs-tertiary-bg:        #1a2235;
+      --bs-code-color:         #00d4ff;
+      --bs-link-color:         #00d4ff;
+      --bs-link-hover-color:   #33ddff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, rgba(0,212,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ─────────────────────────────────── */
+    .navbar {
+      background: #0d1117 !important;
+      border-bottom: 1px solid rgba(0,212,255,0.22);
+      padding: 0.45rem 1.25rem;
+    }
+    .navbar-brand {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      color: var(--cyan) !important;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+    .brand-logo {
+      height: 160px;
+      width: 160px;
+      object-fit: cover;
+      object-position: 20% center;
+      border-radius: 6px;
+      image-rendering: pixelated;
+      border: 1px solid rgba(0,212,255,0.35);
+    }
+    .brand-name { color: var(--cyan); }
+    .brand-sep  { color: var(--muted); margin: 0 0.1rem; }
+    .brand-sub  { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.1em; }
+    #last-refresh { font-family: 'Share Tech Mono', monospace; font-size: 0.68rem; color: var(--muted); }
+
+    /* ── Section heading ─────────────────────────── */
+    .section-title {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--cyan);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      font-weight: 400;
+    }
+
+    /* ── Filter / action buttons ─────────────────── */
+    .filter-btn {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      border-radius: 2px;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: 0.25rem 0.7rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-btn:hover                  { border-color: var(--cyan); color: var(--cyan); }
+    .filter-btn.active                 { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,0.1); }
+    .filter-btn-running.active         { border-color: var(--cyan);  color: var(--cyan);  background: rgba(0,212,255,0.1); }
+    .filter-btn-success.active         { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.1); }
+    .filter-btn-danger.active          { border-color: var(--red);   color: var(--red);   background: rgba(255,45,85,0.1); }
+    .btn-refresh {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: transparent;
+      border-radius: 2px;
+      padding: 0.25rem 0.7rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-refresh:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── Card / table ────────────────────────────── */
+    .cyber-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 0 24px rgba(0,212,255,0.04);
+    }
+    .cyber-table { color: var(--text); margin-bottom: 0; font-size: 0.875rem; }
+    .cyber-table thead tr { background: #0d1117; border-bottom: 1px solid rgba(0,212,255,0.25); }
+    .cyber-table thead th {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: none;
+      padding: 0.65rem 0.85rem;
+      font-weight: 400;
+    }
+    .cyber-table tbody tr { border-bottom: 1px solid rgba(30,58,95,0.45); transition: background 0.1s; }
+    .cyber-table tbody tr:hover { background: var(--surf2); }
+    .cyber-table tbody td { padding: 0.6rem 0.85rem; vertical-align: middle; border: none; }
+    .cyber-table code {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--cyan);
+      background: rgba(0,212,255,0.08);
+      padding: 0.1em 0.45em;
+      border-radius: 2px;
+    }
+
+    /* ── Badges ──────────────────────────────────── */
+    .badge-cyber {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      padding: 0.28em 0.65em;
+      border-radius: 2px;
+      font-weight: 400;
+      display: inline-block;
+    }
+    .badge-cyan  { background: rgba(0,212,255,0.12); color: var(--cyan);  border: 1px solid rgba(0,212,255,0.35); box-shadow: 0 0 6px rgba(0,212,255,0.18); }
+    .badge-green { background: rgba(0,255,136,0.1);  color: var(--green); border: 1px solid rgba(0,255,136,0.35); box-shadow: 0 0 6px rgba(0,255,136,0.18); }
+    .badge-red   { background: rgba(255,45,85,0.12); color: var(--red);   border: 1px solid rgba(255,45,85,0.35); box-shadow: 0 0 6px rgba(255,45,85,0.18); }
+    .badge-amber { background: rgba(255,140,0,0.12); color: var(--amber); border: 1px solid rgba(255,140,0,0.35); box-shadow: 0 0 5px rgba(255,140,0,0.15); }
+    .badge-muted { background: rgba(75,90,114,0.18); color: var(--muted); border: 1px solid rgba(75,90,114,0.28); }
+
+    /* Pulsing dot for RUNNING */
+    .badge-running::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-right: 5px;
+      vertical-align: middle;
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--cyan); }
+      50%       { opacity: 0.35; box-shadow: none; }
+    }
+
+    /* ── Severity ────────────────────────────────── */
+    .severity-HIGH   { color: var(--red);   font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; }
+    .severity-MEDIUM { color: var(--amber); font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; }
+    .severity-LOW    { color: var(--cyan);  font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; }
+
+    /* ── View row button ─────────────────────────── */
+    .btn-view {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+      border: 1px solid rgba(0,212,255,0.35);
+      color: var(--cyan);
+      background: transparent;
+      border-radius: 2px;
+      padding: 0.22rem 0.65rem;
+      text-decoration: none;
+      transition: all 0.15s;
+      display: inline-block;
+    }
+    .btn-view:hover {
+      background: rgba(0,212,255,0.14);
+      color: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 8px rgba(0,212,255,0.28);
+    }
+
+    /* ── Error / empty ───────────────────────────── */
+    .cyber-alert-danger {
+      background: rgba(255,45,85,0.1);
+      border: 1px solid rgba(255,45,85,0.35);
+      color: var(--red);
+      border-radius: 2px;
+      font-size: 0.875rem;
+      padding: 0.6rem 1rem;
+    }
+    .spinner-border { color: var(--cyan) !important; }
+    .loading-text, .empty-state {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark shadow-sm">
+  <div class="container-fluid">
+    <span class="navbar-brand">
+      <img src="../assets/repo_image.jpg" alt="Cohort" class="brand-logo">
+      <span class="brand-name">COHORT</span>
+      <span class="brand-sep">//</span>
+      <span class="brand-sub">AI INCIDENT RESPONSE</span>
+    </span>
+    <span id="last-refresh">–</span>
+  </div>
+</nav>
+
+<div class="container-fluid py-4">
+
+  <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
+    <h5 class="section-title mb-0 me-1">Active Investigations</h5>
+    <div class="d-flex gap-1">
+      <button type="button" class="filter-btn active" onclick="setFilter(null, this)">ALL</button>
+      <button type="button" class="filter-btn filter-btn-running" onclick="setFilter('RUNNING', this)">RUNNING</button>
+      <button type="button" class="filter-btn filter-btn-success" onclick="setFilter('SUCCEEDED', this)">SUCCEEDED</button>
+      <button type="button" class="filter-btn filter-btn-danger" onclick="setFilter('FAILED', this)">FAILED</button>
+    </div>
+    <button class="btn-refresh" onclick="loadInvestigations()">↻ Refresh</button>
+  </div>
+
+  <div id="error-banner" class="cyber-alert-danger d-none mb-3" role="alert"></div>
+
+  <div class="cyber-card">
+    <div class="p-0">
+      <table class="cyber-table table" id="investigations-table">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Alert Type</th>
+            <th>Severity</th>
+            <th>Verdict</th>
+            <th>SFN Status</th>
+            <th>Started</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="investigations-tbody">
+          <tr><td colspan="7" class="text-center py-4">
+            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+            <span class="loading-text">Loading…</span>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script>
+  let _statusFilter = null;
+
+  function setFilter(status, btn) {
+    _statusFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    loadInvestigations();
+  }
+
+  function verdictBadge(v) {
+    if (!v) return '<span style="color:var(--muted)">–</span>';
+    const map = {
+      TRUE_POSITIVE:  ['red',   '🚨 TRUE POSITIVE'],
+      FALSE_POSITIVE: ['green', '✅ FALSE POSITIVE'],
+      INCONCLUSIVE:   ['amber', '⚠️ INCONCLUSIVE'],
+    };
+    const [cls, label] = map[v] || ['muted', v];
+    return `<span class="badge-cyber badge-${cls}">${label}</span>`;
+  }
+
+  function statusBadge(s) {
+    const map = {
+      RUNNING:   ['cyan badge-running', '⏳ RUNNING'],
+      SUCCEEDED: ['green',              '✔ SUCCEEDED'],
+      FAILED:    ['red',                '✖ FAILED'],
+      ABORTED:   ['muted',              '⏹ ABORTED'],
+      TIMED_OUT: ['amber',              '⏱ TIMED OUT'],
+    };
+    const [cls, label] = map[s] || ['muted', s || '–'];
+    return `<span class="badge-cyber badge-${cls}">${label}</span>`;
+  }
+
+  function severityCell(sev) {
+    const cls = { HIGH: 'severity-HIGH', MEDIUM: 'severity-MEDIUM', LOW: 'severity-LOW' };
+    return `<span class="${cls[sev] || ''}">${sev || '–'}</span>`;
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '–';
+    return new Date(iso).toLocaleString();
+  }
+
+  async function loadInvestigations() {
+    const base = window.COHORT_API_BASE || '';
+    const url = _statusFilter
+      ? `${base}/investigations?status=${encodeURIComponent(_statusFilter)}`
+      : `${base}/investigations`;
+
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`HTTP ${r.status} ${r.statusText}`);
+      const data = await r.json();
+
+      const tbody = document.getElementById('investigations-tbody');
+      const list = data.investigations || [];
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 empty-state">No investigations found.</td></tr>';
+      } else {
+        tbody.innerHTML = list.map(inv => `
+          <tr>
+            <td><code>${esc(inv.ticket_number)}</code></td>
+            <td>${esc(inv.alert_type || '–')}</td>
+            <td>${severityCell(inv.severity)}</td>
+            <td>${verdictBadge(inv.verdict)}</td>
+            <td>${statusBadge(inv.status)}</td>
+            <td class="text-nowrap" style="color:var(--muted);font-size:0.8rem;font-family:'Share Tech Mono',monospace">${fmtDate(inv.start_date)}</td>
+            <td>
+              <a href="investigation.html?ticket=${encodeURIComponent(inv.ticket_number)}"
+                 class="btn-view">View →</a>
+            </td>
+          </tr>`).join('');
+      }
+
+      document.getElementById('error-banner').classList.add('d-none');
+    } catch (e) {
+      document.getElementById('error-banner').textContent = `Failed to load investigations: ${e.message}`;
+      document.getElementById('error-banner').classList.remove('d-none');
+      document.getElementById('investigations-tbody').innerHTML =
+        '<tr><td colspan="7" class="text-center py-4 empty-state">Error loading data.</td></tr>';
+    }
+
+    document.getElementById('last-refresh').textContent =
+      `Last refresh: ${new Date().toLocaleTimeString()}`;
+  }
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  loadInvestigations();
+  setInterval(loadInvestigations, 30000);
+</script>
+</body>
+</html>

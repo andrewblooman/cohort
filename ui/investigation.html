@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cohort – Investigation Detail</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:      #0a0e1a;
+      --surface: #111827;
+      --surf2:   #1a2235;
+      --border:  #1e3a5f;
+      --cyan:    #00d4ff;
+      --green:   #00ff88;
+      --red:     #ff2d55;
+      --amber:   #ff8c00;
+      --text:    #e2e8f0;
+      --muted:   #4b5a72;
+
+      /* Bootstrap dark-mode overrides */
+      --bs-body-bg:            #0a0e1a;
+      --bs-body-color:         #e2e8f0;
+      --bs-card-bg:            #111827;
+      --bs-table-bg:           transparent;
+      --bs-table-hover-bg:     rgba(26,34,53,0.8);
+      --bs-table-border-color: rgba(30,58,95,0.45);
+      --bs-border-color:       #1e3a5f;
+      --bs-secondary-bg:       #111827;
+      --bs-tertiary-bg:        #1a2235;
+      --bs-code-color:         #00d4ff;
+      --bs-link-color:         #00d4ff;
+      --bs-link-hover-color:   #33ddff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(circle, rgba(0,212,255,0.06) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Navbar ─────────────────────────────────── */
+    .navbar {
+      background: #0d1117 !important;
+      border-bottom: 1px solid rgba(0,212,255,0.22);
+      padding: 0.45rem 1.25rem;
+    }
+    .navbar-brand {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      color: var(--cyan) !important;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+    }
+    .brand-logo {
+      height: 80px;
+      width: 80px;
+      object-fit: cover;
+      object-position: 20% center;
+      border-radius: 6px;
+      image-rendering: pixelated;
+      border: 1px solid rgba(0,212,255,0.35);
+    }
+    .brand-name { color: var(--cyan); }
+    .brand-sep  { color: var(--muted); margin: 0 0.1rem; }
+    .brand-sub  { color: var(--muted); font-size: 0.68rem; letter-spacing: 0.1em; }
+
+    /* ── Badges ──────────────────────────────────── */
+    .badge-cyber {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      padding: 0.28em 0.65em;
+      border-radius: 2px;
+      font-weight: 400;
+      display: inline-block;
+    }
+    .badge-cyan  { background: rgba(0,212,255,0.12); color: var(--cyan);  border: 1px solid rgba(0,212,255,0.35); box-shadow: 0 0 6px rgba(0,212,255,0.18); }
+    .badge-green { background: rgba(0,255,136,0.1);  color: var(--green); border: 1px solid rgba(0,255,136,0.35); box-shadow: 0 0 6px rgba(0,255,136,0.18); }
+    .badge-red   { background: rgba(255,45,85,0.12); color: var(--red);   border: 1px solid rgba(255,45,85,0.35); box-shadow: 0 0 6px rgba(255,45,85,0.18); }
+    .badge-amber { background: rgba(255,140,0,0.12); color: var(--amber); border: 1px solid rgba(255,140,0,0.35); box-shadow: 0 0 5px rgba(255,140,0,0.15); }
+    .badge-muted { background: rgba(75,90,114,0.18); color: var(--muted); border: 1px solid rgba(75,90,114,0.28); }
+
+    /* Large verdict badge */
+    .verdict-badge-lg {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      padding: 0.4em 1em;
+      border-radius: 3px;
+      display: inline-block;
+    }
+    .verdict-TRUE_POSITIVE  { background: rgba(255,45,85,0.15);  color: var(--red);   border: 1px solid rgba(255,45,85,0.5);  box-shadow: 0 0 12px rgba(255,45,85,0.25); }
+    .verdict-FALSE_POSITIVE { background: rgba(0,255,136,0.12);  color: var(--green); border: 1px solid rgba(0,255,136,0.5);  box-shadow: 0 0 12px rgba(0,255,136,0.2); }
+    .verdict-INCONCLUSIVE   { background: rgba(255,140,0,0.14);  color: var(--amber); border: 1px solid rgba(255,140,0,0.5);  box-shadow: 0 0 10px rgba(255,140,0,0.2); }
+
+    /* Pulsing dot for RUNNING */
+    .badge-running::before {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      margin-right: 5px;
+      vertical-align: middle;
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--cyan); }
+      50%       { opacity: 0.35; box-shadow: none; }
+    }
+
+    /* ── Cards ───────────────────────────────────── */
+    .cyber-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      box-shadow: 0 0 24px rgba(0,212,255,0.04);
+      margin-bottom: 1rem;
+    }
+    .cyber-card-header {
+      background: #0d1117;
+      border-bottom: 1px solid var(--border);
+      padding: 0.65rem 1rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-radius: 4px 4px 0 0;
+    }
+    .cyber-card-body { padding: 1rem; }
+
+    /* ── Detail tables ───────────────────────────── */
+    .detail-table { width: 100%; margin-bottom: 0; font-size: 0.875rem; }
+    .detail-table th {
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      width: 40%;
+      padding: 0.3rem 0.5rem 0.3rem 0;
+      border: none;
+      vertical-align: top;
+    }
+    .detail-table td { padding: 0.3rem 0; border: none; color: var(--text); }
+    .detail-table code {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--cyan);
+      background: rgba(0,212,255,0.08);
+      padding: 0.1em 0.45em;
+      border-radius: 2px;
+    }
+
+    /* ── Page header ─────────────────────────────── */
+    .back-link {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.05em;
+    }
+    .back-link:hover { color: var(--cyan); }
+    .page-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 1rem;
+      letter-spacing: 0.08em;
+      color: var(--text);
+      margin: 0.25rem 0 0;
+    }
+
+    /* ── Re-run button ───────────────────────────── */
+    .btn-rerun {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      border: 1px solid rgba(255,140,0,0.45);
+      color: var(--amber);
+      background: rgba(255,140,0,0.08);
+      border-radius: 2px;
+      padding: 0.3rem 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-rerun:hover { background: rgba(255,140,0,0.18); box-shadow: 0 0 8px rgba(255,140,0,0.25); }
+    .btn-rerun:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Section labels ──────────────────────────── */
+    .section-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    /* ── Threat summary ──────────────────────────── */
+    .threat-summary {
+      border-left: 3px solid var(--amber);
+      padding: 0.5rem 0.75rem;
+      background: rgba(255,140,0,0.05);
+      border-radius: 0 3px 3px 0;
+      color: var(--text);
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    /* ── Reasoning / terminal block ──────────────── */
+    pre.reasoning {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.82rem;
+      font-family: 'Share Tech Mono', monospace;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--green);
+      color: #7ec89e;
+      padding: 1rem;
+      border-radius: 3px;
+      line-height: 1.6;
+    }
+
+    /* ── Lists ───────────────────────────────────── */
+    .cyber-list { list-style: none; padding: 0; margin: 0; }
+    .cyber-list li {
+      font-size: 0.875rem;
+      padding: 0.2rem 0 0.2rem 1.2rem;
+      position: relative;
+      color: var(--text);
+    }
+    .cyber-list li::before {
+      content: '›';
+      position: absolute;
+      left: 0;
+      color: var(--cyan);
+      font-family: 'Share Tech Mono', monospace;
+    }
+
+    /* ── Analysis meta row ───────────────────────── */
+    .analysis-meta { font-size: 0.78rem; color: var(--muted); }
+    .analysis-meta strong { color: var(--text); }
+
+    /* ── Confidence ──────────────────────────────── */
+    .confidence-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--green);
+    }
+
+    /* ── Approval card ───────────────────────────── */
+    .notice-box {
+      background: rgba(255,140,0,0.08);
+      border: 1px solid rgba(255,140,0,0.3);
+      border-left: 3px solid var(--amber);
+      border-radius: 3px;
+      padding: 0.75rem 1rem;
+      font-size: 0.85rem;
+      color: var(--amber);
+      margin-bottom: 1rem;
+    }
+    .notice-box strong { color: var(--amber); }
+
+    /* ── Form inputs (dark) ──────────────────────── */
+    .form-control {
+      background: #0d1117 !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: 2px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.875rem;
+    }
+    .form-control:focus {
+      border-color: rgba(0,212,255,0.5) !important;
+      box-shadow: 0 0 0 2px rgba(0,212,255,0.1) !important;
+      background: #0d1117 !important;
+      color: var(--text) !important;
+    }
+    .form-control::placeholder { color: var(--muted) !important; }
+    .form-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+    .form-check-input {
+      background-color: #0d1117 !important;
+      border-color: var(--border) !important;
+    }
+    .form-check-input:checked {
+      background-color: var(--cyan) !important;
+      border-color: var(--cyan) !important;
+    }
+    .form-check-label { font-size: 0.875rem; color: var(--text); }
+
+    /* ── Action buttons ──────────────────────────── */
+    .btn-approve {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      border: 1px solid rgba(0,255,136,0.45);
+      color: var(--green);
+      background: rgba(0,255,136,0.08);
+      border-radius: 2px;
+      padding: 0.35rem 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-approve:hover { background: rgba(0,255,136,0.18); box-shadow: 0 0 8px rgba(0,255,136,0.25); }
+    .btn-reject {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.06em;
+      border: 1px solid rgba(255,45,85,0.45);
+      color: var(--red);
+      background: transparent;
+      border-radius: 2px;
+      padding: 0.35rem 0.9rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-reject:hover { background: rgba(255,45,85,0.1); box-shadow: 0 0 8px rgba(255,45,85,0.2); }
+
+    /* ── Result alerts ───────────────────────────── */
+    .cyber-alert-success {
+      background: rgba(0,255,136,0.08);
+      border: 1px solid rgba(0,255,136,0.35);
+      color: var(--green);
+      border-radius: 2px;
+      font-size: 0.875rem;
+      padding: 0.6rem 1rem;
+    }
+    .cyber-alert-danger {
+      background: rgba(255,45,85,0.1);
+      border: 1px solid rgba(255,45,85,0.35);
+      color: var(--red);
+      border-radius: 2px;
+      font-size: 0.875rem;
+      padding: 0.6rem 1rem;
+    }
+
+    /* ── Artifacts ───────────────────────────────── */
+    .artifact-path {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--cyan);
+      background: rgba(0,212,255,0.06);
+      padding: 0.1em 0.45em;
+      border-radius: 2px;
+    }
+
+    /* ── Misc ────────────────────────────────────── */
+    .spinner-border { color: var(--cyan) !important; }
+    .loading-text { font-family: 'Share Tech Mono', monospace; font-size: 0.78rem; color: var(--muted); }
+    hr { border-color: var(--border); }
+    .text-muted-cyber { color: var(--muted); font-size: 0.8rem; }
+    .no-approval-msg { font-family: 'Share Tech Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+    .severity-HIGH   { color: var(--red);   font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; }
+    .severity-MEDIUM { color: var(--amber); font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; }
+    .severity-LOW    { color: var(--cyan);  font-weight: 600; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark shadow-sm">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="index.html">
+      <img src="../assets/repo_image.jpg" alt="Cohort" class="brand-logo">
+      <span class="brand-name">COHORT</span>
+      <span class="brand-sep">//</span>
+      <span class="brand-sub">AI INCIDENT RESPONSE</span>
+    </a>
+    <span id="sfn-status-badge" class="badge-cyber badge-muted">Loading…</span>
+  </div>
+</nav>
+
+<div class="container-fluid py-4">
+
+  <!-- Loading spinner -->
+  <div id="loading" class="text-center py-5">
+    <div class="spinner-border" role="status"></div>
+    <p class="loading-text mt-2">Loading investigation…</p>
+  </div>
+
+  <!-- Error panel -->
+  <div id="error-panel" class="cyber-alert-danger d-none mb-3" role="alert"></div>
+
+  <!-- Main content (hidden until loaded) -->
+  <div id="content" class="d-none">
+
+    <!-- Page header -->
+    <div class="d-flex align-items-start mb-3">
+      <div class="flex-grow-1">
+        <a href="index.html" class="back-link">← All Investigations</a>
+        <h5 class="page-title" id="page-title">Investigation</h5>
+      </div>
+      <button class="btn-rerun ms-3" id="rerun-btn" onclick="rerunAnalysis()">
+        🔁 Re-run Analysis
+      </button>
+    </div>
+
+    <!-- Incident overview -->
+    <div class="cyber-card">
+      <div class="cyber-card-header">Incident Overview</div>
+      <div class="cyber-card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <table class="detail-table">
+              <tr><th>Ticket</th><td><code id="f-ticket"></code></td></tr>
+              <tr><th>Alert Type</th><td id="f-alert-type"></td></tr>
+              <tr><th>Severity</th><td id="f-severity"></td></tr>
+              <tr><th>Finding ID</th><td><code id="f-finding-id"></code></td></tr>
+            </table>
+          </div>
+          <div class="col-md-6">
+            <table class="detail-table">
+              <tr><th>AWS Account</th><td id="f-account"></td></tr>
+              <tr><th>Region</th><td id="f-region"></td></tr>
+              <tr><th>Resource Type</th><td id="f-resource-type"></td></tr>
+              <tr><th>Resource ID</th><td><code id="f-resource-id"></code></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Analysis -->
+    <div class="cyber-card">
+      <div class="cyber-card-header">AI Analysis</div>
+      <div class="cyber-card-body">
+        <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
+          <span id="verdict-badge" class="verdict-badge-lg">–</span>
+          <span class="analysis-meta">Confidence: <strong class="confidence-val" id="confidence-val">–</strong></span>
+          <span class="analysis-meta">Playbook: <strong id="playbook-val">–</strong></span>
+          <span class="analysis-meta">Model: <strong id="model-val">–</strong></span>
+          <span class="analysis-meta">Analysed: <strong id="analysis-ts">–</strong></span>
+        </div>
+
+        <p class="section-label">Threat Summary</p>
+        <p id="threat-summary" class="threat-summary mb-3"></p>
+
+        <p class="section-label">AI Reasoning</p>
+        <pre class="reasoning" id="reasoning"></pre>
+
+        <div id="iocs-section" class="d-none mt-3">
+          <p class="section-label">Indicators of Compromise</p>
+          <ul id="iocs-list" class="cyber-list mb-0"></ul>
+        </div>
+
+        <div id="fp-section" class="d-none mt-3">
+          <p class="section-label">False Positive Indicators</p>
+          <ul id="fp-list" class="cyber-list mb-0"></ul>
+        </div>
+
+        <div id="mitre-section" class="d-none mt-3">
+          <p class="section-label">MITRE ATT&amp;CK Techniques</p>
+          <ul id="mitre-list" class="cyber-list mb-0"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proposed actions + approval -->
+    <div class="cyber-card">
+      <div class="cyber-card-header">
+        <span>⚠️ Proposed Actions</span>
+        <span id="approval-status-badge" class="badge-cyber badge-amber">PENDING APPROVAL</span>
+      </div>
+      <div class="cyber-card-body">
+        <div class="notice-box">
+          <strong>NOTICE: NO AUTOMATED ACTIONS HAVE BEEN TAKEN.</strong><br>
+          The AI agent is an investigator only. Review each proposed action carefully before
+          authorising any remediation. These are proposals — nothing has been executed.
+        </div>
+
+        <div id="actions-list" class="mb-3"></div>
+
+        <!-- Approval form — shown only when a pending task_token is available -->
+        <div id="approval-form" class="d-none">
+          <hr>
+          <p class="section-label mb-2">Authorise Remediation</p>
+          <p class="text-muted-cyber mb-3">Select the actions you wish to approve above, then complete the form below.</p>
+          <div class="mb-2">
+            <label class="form-label">Analyst ID (email)</label>
+            <input type="email" class="form-control" id="analyst-id-input"
+                   placeholder="your-email@company.com" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Approval Notes <span style="color:var(--muted)">(optional)</span></label>
+            <textarea class="form-control" id="approval-notes-input" rows="2"
+                      placeholder="Context for the audit trail…"></textarea>
+          </div>
+          <button class="btn-approve me-2" onclick="submitApproval()">
+            ✅ Approve Selected Actions
+          </button>
+          <button class="btn-reject" onclick="submitRejection()">
+            ❌ Reject — Take No Action
+          </button>
+          <div id="approval-result" class="mt-3 d-none"></div>
+        </div>
+
+        <!-- Message when no pending approval token exists -->
+        <div id="no-approval-msg" class="no-approval-msg d-none">
+          No pending approval token. The workflow may have already been actioned, or
+          the investigation is not currently awaiting analyst review.
+        </div>
+      </div>
+    </div>
+
+    <!-- Artifacts -->
+    <div class="cyber-card">
+      <div class="cyber-card-header">Artifacts</div>
+      <div class="cyber-card-body">
+        <p class="mb-1" style="font-size:0.875rem">S3 bucket: <code class="artifact-path" id="art-bucket"></code></p>
+        <p class="mb-0" style="font-size:0.875rem">S3 prefix: <code class="artifact-path" id="art-prefix"></code></p>
+      </div>
+    </div>
+
+  </div><!-- /#content -->
+</div>
+
+<script src="config.js"></script>
+<script>
+  const _ticket = new URLSearchParams(location.search).get('ticket') || '';
+  let _pendingApproval = null;
+  let _proposedActions = [];
+
+  function esc(str) {
+    return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-panel');
+    el.textContent = msg;
+    el.classList.remove('d-none');
+    document.getElementById('loading').classList.add('d-none');
+  }
+
+  function setList(ulId, sectionId, items) {
+    if (!items || items.length === 0) return;
+    const ul = document.getElementById(ulId);
+    ul.innerHTML = items.map(i => `<li>${esc(i)}</li>`).join('');
+    document.getElementById(sectionId).classList.remove('d-none');
+  }
+
+  function verdictBadge(v) {
+    const map = {
+      TRUE_POSITIVE:  '🚨 True Positive',
+      FALSE_POSITIVE: '✅ False Positive',
+      INCONCLUSIVE:   '⚠️ Inconclusive',
+    };
+    const badge = document.getElementById('verdict-badge');
+    badge.textContent = map[v] || v || '–';
+    badge.className = `verdict-badge-lg verdict-${v || ''}`;
+  }
+
+  function statusBadge(s) {
+    const map = {
+      RUNNING:   ['cyan badge-running', '⏳ RUNNING'],
+      SUCCEEDED: ['green',              '✔ SUCCEEDED'],
+      FAILED:    ['red',                '✖ FAILED'],
+      ABORTED:   ['muted',              '⏹ ABORTED'],
+      TIMED_OUT: ['amber',              '⏱ TIMED OUT'],
+    };
+    const [cls, label] = map[s] || ['muted', s || 'Unknown'];
+    const badge = document.getElementById('sfn-status-badge');
+    badge.textContent = label;
+    badge.className = `badge-cyber badge-${cls}`;
+  }
+
+  function renderActions(actions) {
+    const el = document.getElementById('actions-list');
+    if (!actions || actions.length === 0) {
+      el.innerHTML = '<p class="no-approval-msg mb-0">No specific actions proposed.</p>';
+      return;
+    }
+    _proposedActions = actions.map((a, i) => ({
+      action_id: `action-${i + 1}`,
+      action: a,
+      selected: false,
+    }));
+    el.innerHTML = _proposedActions.map((item, i) => `
+      <div class="form-check mb-1">
+        <input class="form-check-input" type="checkbox" id="action-${i}"
+               onchange="_proposedActions[${i}].selected = this.checked">
+        <label class="form-check-label" for="action-${i}">${esc(item.action)}</label>
+      </div>`).join('');
+  }
+
+  async function loadInvestigation() {
+    if (!_ticket) { showError('No ticket specified in URL.'); return; }
+
+    const base = window.COHORT_API_BASE || '';
+    try {
+      const r = await fetch(`${base}/investigations/${encodeURIComponent(_ticket)}`);
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${r.status}`);
+      }
+      const data = await r.json();
+
+      const summary = data.incident_summary || {};
+      const incident = summary.incident || {};
+      const analysis = summary.analysis || {};
+      const artifacts = summary.artifacts || {};
+
+      // Page title
+      document.getElementById('page-title').textContent = `Investigation: ${_ticket}`;
+      document.title = `Cohort – ${_ticket}`;
+
+      // Incident fields
+      document.getElementById('f-ticket').textContent       = incident.ticket_number || _ticket;
+      document.getElementById('f-alert-type').textContent   = incident.alert_type || '–';
+      const sevEl = document.getElementById('f-severity');
+      sevEl.textContent = incident.severity || '–';
+      sevEl.className = `severity-${incident.severity || ''}`;
+      document.getElementById('f-finding-id').textContent   = incident.finding_id || '–';
+      document.getElementById('f-account').textContent      = incident.account_id || '–';
+      document.getElementById('f-region').textContent       = incident.region || '–';
+      document.getElementById('f-resource-type').textContent = incident.resource_type || '–';
+      document.getElementById('f-resource-id').textContent  = incident.resource_id || '–';
+
+      // Analysis
+      verdictBadge(analysis.verdict);
+      document.getElementById('confidence-val').textContent  = analysis.confidence || '–';
+      document.getElementById('playbook-val').textContent    = analysis.playbook || '–';
+      document.getElementById('model-val').textContent       = analysis.model_id || '–';
+      document.getElementById('analysis-ts').textContent     = analysis.analysis_timestamp
+        ? new Date(analysis.analysis_timestamp).toLocaleString() : '–';
+      document.getElementById('threat-summary').textContent  = analysis.threat_summary || '–';
+      document.getElementById('reasoning').textContent       = analysis.reasoning || '–';
+
+      setList('iocs-list',   'iocs-section',  analysis.indicators_of_compromise);
+      setList('fp-list',     'fp-section',    analysis.false_positive_indicators);
+      setList('mitre-list',  'mitre-section', analysis.mitre_attack_techniques);
+
+      renderActions(analysis.proposed_actions);
+
+      // Artifacts
+      document.getElementById('art-bucket').textContent = summary.incident?.secops_case_id
+        ? `(from s3 artifacts bucket)` : (artifacts.s3_bucket || '–');
+      document.getElementById('art-prefix').textContent = `${_ticket}/`;
+
+      // SFN status
+      if (data.execution) statusBadge(data.execution.status);
+      else document.getElementById('sfn-status-badge').textContent = 'No execution found';
+
+      // Pending approval
+      _pendingApproval = data.pending_approval;
+      const exec = data.execution;
+      const isAwaitingApproval = _pendingApproval?.task_token && exec?.status === 'RUNNING';
+
+      if (isAwaitingApproval) {
+        document.getElementById('approval-form').classList.remove('d-none');
+        document.getElementById('approval-status-badge').textContent = 'AWAITING YOUR APPROVAL';
+      } else if (_pendingApproval?.task_token && exec?.status !== 'RUNNING') {
+        document.getElementById('approval-status-badge').textContent = 'ACTIONED';
+        document.getElementById('approval-status-badge').className = 'badge-cyber badge-muted';
+        document.getElementById('no-approval-msg').classList.remove('d-none');
+      } else {
+        document.getElementById('no-approval-msg').classList.remove('d-none');
+      }
+
+      document.getElementById('loading').classList.add('d-none');
+      document.getElementById('content').classList.remove('d-none');
+
+    } catch (e) {
+      showError(`Failed to load investigation ${_ticket}: ${e.message}`);
+    }
+  }
+
+  async function submitApproval() {
+    const analystId = document.getElementById('analyst-id-input').value.trim();
+    if (!analystId) { alert('Please enter your analyst ID (email).'); return; }
+    if (!_pendingApproval?.task_token) { alert('No pending task token found.'); return; }
+
+    const selectedActions = _proposedActions
+      .filter(a => a.selected)
+      .map((a, i) => ({
+        action_id: a.action_id,
+        type: 'manual_approval',
+        parameters: { description: a.action },
+      }));
+
+    const payload = {
+      task_token: _pendingApproval.task_token,
+      analyst_id: analystId,
+      approval_notes: document.getElementById('approval-notes-input').value.trim(),
+      approved_actions: selectedActions,
+    };
+
+    await _postApproval(payload, 'Approval submitted successfully.');
+  }
+
+  async function submitRejection() {
+    const analystId = document.getElementById('analyst-id-input').value.trim();
+    if (!analystId) { alert('Please enter your analyst ID (email).'); return; }
+    if (!_pendingApproval?.task_token) { alert('No pending task token found.'); return; }
+
+    const payload = {
+      action: 'reject',
+      task_token: _pendingApproval.task_token,
+      analyst_id: analystId,
+      rejection_reason: document.getElementById('approval-notes-input').value.trim()
+        || 'Analyst declined to authorise proposed actions via web UI',
+    };
+
+    await _postApproval(payload, 'Rejection submitted. No actions will be executed.');
+  }
+
+  async function _postApproval(payload, successMsg) {
+    const base = window.COHORT_API_BASE || '';
+    const resultEl = document.getElementById('approval-result');
+    resultEl.classList.add('d-none');
+
+    try {
+      const r = await fetch(`${base}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok || data.status === 'error') {
+        throw new Error(data.errors?.join(', ') || data.message || `HTTP ${r.status}`);
+      }
+      resultEl.className = 'cyber-alert-success mt-3';
+      resultEl.textContent = successMsg;
+      resultEl.classList.remove('d-none');
+      document.getElementById('approval-status-badge').textContent = 'ACTIONED';
+      document.getElementById('approval-status-badge').className = 'badge-cyber badge-muted';
+      document.getElementById('approval-form').classList.add('d-none');
+      document.getElementById('no-approval-msg').classList.remove('d-none');
+    } catch (e) {
+      resultEl.className = 'cyber-alert-danger mt-3';
+      resultEl.textContent = `Error: ${e.message}`;
+      resultEl.classList.remove('d-none');
+    }
+  }
+
+  async function rerunAnalysis() {
+    if (!confirm(`Re-run the full analysis pipeline for ticket ${_ticket}?\n\nThis will abort any active investigation and start a fresh one.`)) return;
+
+    const base = window.COHORT_API_BASE || '';
+    const btn = document.getElementById('rerun-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Starting…';
+
+    try {
+      const r = await fetch(`${base}/investigations/${encodeURIComponent(_ticket)}/rerun`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      alert(`Analysis re-run started.\nNew execution: ${data.execution_name || data.execution_arn}`);
+      location.reload();
+    } catch (e) {
+      alert(`Failed to start re-run: ${e.message}`);
+      btn.disabled = false;
+      btn.textContent = '🔁 Re-run Analysis';
+    }
+  }
+
+  loadInvestigation();
+</script>
+</body>
+</html>

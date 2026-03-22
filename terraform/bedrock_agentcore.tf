@@ -22,7 +22,7 @@ resource "aws_cloudwatch_log_group" "agentcore_runtime" {
 ####################################
 
 resource "aws_bedrockagentcore_agent_runtime" "incident_response" {
-  agent_runtime_name = "${var.project_name}-incident-response"
+  agent_runtime_name = "${replace(var.project_name, "-", "_")}_incident_response"
   description        = "AI incident-response agent. Analyses GuardDuty findings using enrichment data and returns a TRUE_POSITIVE / FALSE_POSITIVE / INCONCLUSIVE verdict."
 
   agent_runtime_artifact {
@@ -33,6 +33,12 @@ resource "aws_bedrockagentcore_agent_runtime" "incident_response" {
 
   network_configuration {
     network_mode = "PUBLIC"
+  }
+
+  # Pass the configured foundation model ID to the container so the agent
+  # runtime code uses the same model as the direct InvokeModel fallback.
+  environment_variables = {
+    BEDROCK_MODEL_ID = var.bedrock_model_id
   }
 
   role_arn = aws_iam_role.agentcore_runtime.arn
@@ -48,19 +54,10 @@ resource "aws_bedrockagentcore_agent_runtime" "incident_response" {
 # investigator notes across separate Step Functions executions.
 ####################################
 
-resource "aws_bedrockagentcore_memory_store" "incident_memory" {
-  name        = "${var.project_name}-incident-memory"
-  description = "Cross-session incident-response memory. Stores verdicts, IoCs, and false-positive patterns to improve future triage accuracy."
-
-  memory_configuration {
-    session_summary_configuration {
-      max_session_summaries = 100
-    }
-  }
-
-  event_expiry_configuration {
-    ttl_seconds = var.agentcore_memory_retention_days * 86400
-  }
-
-  encryption_key_arn = null # Uses AWS-managed key; replace with a CMK ARN for stricter compliance
+resource "aws_bedrockagentcore_memory" "incident_memory" {
+  name                      = "${replace(var.project_name, "-", "_")}_incident_memory"
+  description               = "Cross-session incident-response memory. Stores verdicts, IoCs, and false-positive patterns to improve future triage accuracy."
+  event_expiry_duration     = var.agentcore_memory_retention_days # days (7–365)
+  memory_execution_role_arn = aws_iam_role.agentcore_runtime.arn
+  # encryption_key_arn omitted – uses AWS-managed key; replace with a CMK ARN for stricter compliance
 }

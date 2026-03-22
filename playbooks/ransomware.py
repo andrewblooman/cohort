@@ -28,6 +28,10 @@ RANSOMWARE = Playbook(
         "Exfiltration",
         "UnauthorizedAccess:EC2",
         "Execution:EC2",
+        "AttackSequence:EC2",
+        "Execution:Runtime",
+        "Impact:Runtime",
+        "UnauthorizedAccess:Lambda",
     ],
     investigation_steps=[
         "Identify the affected EC2 instance and its associated IAM instance profile.",

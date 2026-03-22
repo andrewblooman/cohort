@@ -36,8 +36,10 @@ SAMPLE_ANALYSIS = {
     "threat_summary": "Confirmed cryptocurrency mining.",
     "indicators_of_compromise": ["pool.minexmr.com"],
     "false_positive_indicators": [],
-    "recommendations": ["Isolate instance", "Rotate credentials"],
+    "proposed_actions": ["Isolate instance", "Rotate credentials"],
     "mitre_attack_techniques": ["T1496"],
+    "approval_status": "PENDING_HUMAN_APPROVAL",
+    "actions_taken": [],
 }
 
 SAMPLE_STORE_RESULT = {
@@ -137,25 +139,70 @@ class TestBuildSiemComment:
         assert "test-artifacts-bucket" in comment
         assert "INC-005/" in comment
 
-    def test_contains_recommendations(self):
+    def test_contains_proposed_actions(self):
         comment = notify_handler.build_siem_comment(SAMPLE_EVENT, SAMPLE_ANALYSIS, SAMPLE_STORE_RESULT)
         assert "Isolate instance" in comment
         assert "Rotate credentials" in comment
 
-    def test_handles_empty_recommendations(self):
-        analysis = {**SAMPLE_ANALYSIS, "recommendations": []}
-        comment = notify_handler.build_siem_comment(SAMPLE_EVENT, analysis, SAMPLE_STORE_RESULT)
-        assert "None" in comment
+    def test_contains_approval_language(self):
+        comment = notify_handler.build_siem_comment(SAMPLE_EVENT, SAMPLE_ANALYSIS, SAMPLE_STORE_RESULT)
+        assert "PENDING ANALYST APPROVAL" in comment
+        assert "NO AUTOMATED ACTIONS HAVE BEEN TAKEN" in comment
 
-    def test_false_positive_label(self):
-        analysis = {**SAMPLE_ANALYSIS, "verdict": "FALSE_POSITIVE"}
+    def test_handles_empty_proposed_actions(self):
+        analysis = {**SAMPLE_ANALYSIS, "proposed_actions": []}
         comment = notify_handler.build_siem_comment(SAMPLE_EVENT, analysis, SAMPLE_STORE_RESULT)
-        assert "FALSE POSITIVE" in comment
+        assert "No specific actions proposed" in comment
 
-    def test_inconclusive_label(self):
-        analysis = {**SAMPLE_ANALYSIS, "verdict": "INCONCLUSIVE"}
-        comment = notify_handler.build_siem_comment(SAMPLE_EVENT, analysis, SAMPLE_STORE_RESULT)
-        assert "INCONCLUSIVE" in comment
+    def test_includes_task_token_in_comment_when_present(self):
+        event = {**SAMPLE_EVENT, "task_token": "AAAAKgAAAAIAAAAAAAAAAQtoken"}
+        comment = notify_handler.build_siem_comment(event, SAMPLE_ANALYSIS, SAMPLE_STORE_RESULT)
+        assert "AAAAKgAAAAIAAAAAAAAAAQtoken" in comment
+        assert "approve_actions" in comment
+        assert "7 days" in comment
+
+    def test_no_approval_section_without_task_token(self):
+        event = {**SAMPLE_EVENT}  # no task_token
+        comment = notify_handler.build_siem_comment(event, SAMPLE_ANALYSIS, SAMPLE_STORE_RESULT)
+        assert "approve_actions" not in comment
+
+
+class TestBuildExecutionComment:
+    EXECUTION = {
+        "analyst_id": "analyst@company.com",
+        "approval_notes": "Confirmed threat",
+        "approval_timestamp": "2024-01-15T11:00:00+00:00",
+        "execution_timestamp": "2024-01-15T11:05:00+00:00",
+        "total_actions": 2,
+        "succeeded": 2,
+        "failed": 0,
+        "results": [
+            {"action_id": "ec2-1", "type": "stop_ec2_instance", "status": "succeeded", "details": {"instance_id": "i-abc"}},
+            {"action_id": "gd-1", "type": "archive_guardduty_finding", "status": "succeeded", "details": {}},
+        ],
+    }
+
+    def test_contains_analyst_id(self):
+        comment = notify_handler.build_execution_comment(SAMPLE_EVENT, self.EXECUTION)
+        assert "analyst@company.com" in comment
+
+    def test_contains_action_results(self):
+        comment = notify_handler.build_execution_comment(SAMPLE_EVENT, self.EXECUTION)
+        assert "stop_ec2_instance" in comment
+        assert "archive_guardduty_finding" in comment
+        assert "succeeded" in comment
+
+    def test_shows_partial_failure(self):
+        execution = {
+            **self.EXECUTION,
+            "failed": 1,
+            "results": [
+                {"action_id": "bad-1", "type": "stop_ec2_instance", "status": "failed", "error": "Instance not found"},
+            ],
+        }
+        comment = notify_handler.build_execution_comment(SAMPLE_EVENT, execution)
+        assert "failed" in comment
+        assert "Instance not found" in comment
 
 
 # ---------------------------------------------------------------------------
@@ -199,6 +246,7 @@ class TestLambdaHandler:
         assert result["notification_status"] == "skipped"
         assert result["ticket_number"] == "INC-005"
         assert result["verdict"] == "TRUE_POSITIVE"
+        assert result["approval_status"] == "PENDING_HUMAN_APPROVAL"
 
     def test_skips_when_no_endpoint_configured(self):
         with patch.object(notify_handler, "GOOGLE_SECOPS_API_ENDPOINT", ""):
@@ -250,3 +298,4 @@ class TestLambdaHandler:
 
         assert result["notification_status"] == "success"
         assert result["secops_case_id"] == "CASE-400"
+        assert result["approval_status"] == "PENDING_HUMAN_APPROVAL"
