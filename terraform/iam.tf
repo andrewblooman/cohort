@@ -152,14 +152,24 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         ]
         Resource = "*"
       },
-      # Secrets Manager – retrieve Google SecOps credentials
+      # Secrets Manager – retrieve Google SecOps credentials and the API key
       {
         Sid    = "SecretsManagerRead"
         Effect = "Allow"
         Action = [
           "secretsmanager:GetSecretValue",
         ]
-        Resource = var.google_secops_credentials_secret_arn != "" ? var.google_secops_credentials_secret_arn : "arn:aws:secretsmanager:*:*:secret:${var.project_name}/*"
+        Resource = [
+          var.google_secops_credentials_secret_arn != "" ? var.google_secops_credentials_secret_arn : "arn:aws:secretsmanager:*:*:secret:${var.project_name}/*",
+          aws_secretsmanager_secret.api_key.arn,
+        ]
+      },
+      # SQS – write failed async invocations to the dead-letter queue
+      {
+        Sid    = "SQSDLQSend"
+        Effect = "Allow"
+        Action = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.lambda_dlq.arn
       },
       # Step Functions – used by notify_siem to report state
       {
@@ -213,13 +223,21 @@ resource "aws_iam_role_policy" "execute_actions_permissions" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
-      # EC2 – remediation actions (isolation, stop, snapshot)
+      # EC2 – describe (read-only, must be * — no resource-level support)
       {
-        Sid    = "EC2Remediation"
+        Sid    = "EC2Describe"
         Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
           "ec2:DescribeSecurityGroups",
+        ]
+        Resource = "*"
+      },
+      # EC2 – mutating remediation actions scoped to this account
+      {
+        Sid    = "EC2Remediation"
+        Effect = "Allow"
+        Action = [
           "ec2:ModifyInstanceAttribute",
           "ec2:StopInstances",
           "ec2:CreateSnapshot",
@@ -227,9 +245,9 @@ resource "aws_iam_role_policy" "execute_actions_permissions" {
           "ec2:RevokeSecurityGroupEgress",
           "ec2:CreateTags",
         ]
-        Resource = "*"
+        Resource = "arn:aws:ec2:*:${data.aws_caller_identity.current.account_id}:*"
       },
-      # IAM – remediation actions (key deactivation, session revocation)
+      # IAM – key deactivation and session revocation scoped to this account
       {
         Sid    = "IAMRemediation"
         Effect = "Allow"
@@ -237,25 +255,52 @@ resource "aws_iam_role_policy" "execute_actions_permissions" {
           "iam:UpdateAccessKey",
           "iam:PutRolePolicy",
         ]
-        Resource = "*"
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:*"
       },
-      # GuardDuty – archive resolved findings
+      # GuardDuty – archive resolved findings scoped to this account
       {
         Sid    = "GuardDutyArchive"
         Effect = "Allow"
         Action = [
           "guardduty:ArchiveFindings",
         ]
-        Resource = "*"
+        Resource = "arn:aws:guardduty:*:${data.aws_caller_identity.current.account_id}:detector/*"
       },
-      # S3 – block public access on buckets
+      # S3 – block public access; scoped to this account's buckets
       {
         Sid    = "S3BlockPublicAccess"
         Effect = "Allow"
         Action = [
           "s3:PutBucketPublicAccessBlock",
         ]
-        Resource = "*"
+        Resource = "arn:aws:s3:::*"
+      },
+      # CloudWatch Logs – write execution results
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+        ]
+        Resource = "arn:aws:logs:*:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.project_name}-execute-actions:*"
+      },
+      # S3 – write action results to the artifacts bucket
+      {
+        Sid    = "S3ArtifactWrite"
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+        ]
+        Resource = "${aws_s3_bucket.artifacts.arn}/*"
+      },
+      # SQS – write failed async invocations to the dead-letter queue
+      {
+        Sid      = "SQSDLQSend"
+        Effect   = "Allow"
+        Action   = ["sqs:SendMessage"]
+        Resource = aws_sqs_queue.lambda_dlq.arn
       },
     ]
   })
