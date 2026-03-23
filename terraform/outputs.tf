@@ -1,3 +1,8 @@
+output "lambda_dlq_arn" {
+  description = "ARN of the shared Lambda dead-letter SQS queue"
+  value       = aws_sqs_queue.lambda_dlq.arn
+}
+
 output "artifacts_bucket_name" {
   description = "Name of the S3 bucket used to store incident-response artifacts"
   value       = aws_s3_bucket.artifacts.id
@@ -95,6 +100,11 @@ output "approve_actions_lambda_arn" {
 output "execute_actions_lambda_arn" {
   description = "ARN of the execute-actions Lambda (invoked only by Step Functions after analyst approval)"
   value       = aws_lambda_function.execute_actions.arn
+}
+
+output "api_key_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding the Cohort API key (set in X-Api-Key header)"
+  value       = aws_secretsmanager_secret.api_key.arn
 }
 
 output "approval_api_endpoint" {

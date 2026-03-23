@@ -6,6 +6,9 @@
 # request to the approve_actions Lambda, which calls sfn.send_task_success to
 # resume the paused Step Functions workflow.
 #
+# All routes are protected by a Lambda request authorizer that validates the
+# X-Api-Key header against a value stored in AWS Secrets Manager.
+#
 # Endpoint:  POST <approval_api_endpoint>/approve
 #
 # Request body (approve):
@@ -25,6 +28,45 @@
 #   }
 ####################################
 
+####################################
+# Secrets Manager – API key
+####################################
+
+resource "aws_secretsmanager_secret" "api_key" {
+  name                    = "${var.project_name}-api-key"
+  description             = "API key for the Cohort incident-response HTTP API (X-Api-Key header)"
+  recovery_window_in_days = 7
+}
+
+resource "aws_secretsmanager_secret_version" "api_key" {
+  secret_id     = aws_secretsmanager_secret.api_key.id
+  secret_string = var.api_key
+}
+
+####################################
+# Lambda authorizer
+####################################
+
+resource "aws_apigatewayv2_authorizer" "api_key" {
+  api_id                            = aws_apigatewayv2_api.approval.id
+  authorizer_type                   = "REQUEST"
+  authorizer_uri                    = aws_lambda_function.api_authorizer.invoke_arn
+  identity_sources                  = ["$request.header.X-Api-Key"]
+  name                              = "${var.project_name}-api-key-authorizer"
+  authorizer_payload_format_version = "2.0"
+  enable_simple_responses           = true
+  # Cache the auth result for 5 minutes to avoid hitting Secrets Manager on every request
+  authorizer_result_ttl_in_seconds  = 300
+}
+
+resource "aws_lambda_permission" "api_authorizer_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeAuthorizer"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api_authorizer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.approval.execution_arn}/authorizers/${aws_apigatewayv2_authorizer.api_key.id}"
+}
+
 resource "aws_apigatewayv2_api" "approval" {
   name          = "${var.project_name}-approval"
   protocol_type = "HTTP"
@@ -32,7 +74,7 @@ resource "aws_apigatewayv2_api" "approval" {
 
   cors_configuration {
     allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_headers = ["content-type", "authorization"]
+    allow_headers = ["content-type", "authorization", "x-api-key"]
     allow_origins = ["*"]
     max_age       = 300
   }
@@ -47,9 +89,11 @@ resource "aws_apigatewayv2_integration" "approve" {
 }
 
 resource "aws_apigatewayv2_route" "approve" {
-  api_id    = aws_apigatewayv2_api.approval.id
-  route_key = "POST /approve"
-  target    = "integrations/${aws_apigatewayv2_integration.approve.id}"
+  api_id             = aws_apigatewayv2_api.approval.id
+  route_key          = "POST /approve"
+  target             = "integrations/${aws_apigatewayv2_integration.approve.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key.id
 }
 
 resource "aws_apigatewayv2_stage" "default" {
@@ -98,9 +142,11 @@ resource "aws_apigatewayv2_integration" "list_investigations" {
 }
 
 resource "aws_apigatewayv2_route" "list_investigations" {
-  api_id    = aws_apigatewayv2_api.approval.id
-  route_key = "GET /investigations"
-  target    = "integrations/${aws_apigatewayv2_integration.list_investigations.id}"
+  api_id             = aws_apigatewayv2_api.approval.id
+  route_key          = "GET /investigations"
+  target             = "integrations/${aws_apigatewayv2_integration.list_investigations.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key.id
 }
 
 resource "aws_lambda_permission" "allow_api_gateway_list_investigations" {
@@ -120,9 +166,11 @@ resource "aws_apigatewayv2_integration" "get_investigation" {
 }
 
 resource "aws_apigatewayv2_route" "get_investigation" {
-  api_id    = aws_apigatewayv2_api.approval.id
-  route_key = "GET /investigations/{ticket_number}"
-  target    = "integrations/${aws_apigatewayv2_integration.get_investigation.id}"
+  api_id             = aws_apigatewayv2_api.approval.id
+  route_key          = "GET /investigations/{ticket_number}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_investigation.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key.id
 }
 
 resource "aws_lambda_permission" "allow_api_gateway_get_investigation" {
@@ -142,9 +190,11 @@ resource "aws_apigatewayv2_integration" "rerun_analysis" {
 }
 
 resource "aws_apigatewayv2_route" "rerun_analysis" {
-  api_id    = aws_apigatewayv2_api.approval.id
-  route_key = "POST /investigations/{ticket_number}/rerun"
-  target    = "integrations/${aws_apigatewayv2_integration.rerun_analysis.id}"
+  api_id             = aws_apigatewayv2_api.approval.id
+  route_key          = "POST /investigations/{ticket_number}/rerun"
+  target             = "integrations/${aws_apigatewayv2_integration.rerun_analysis.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key.id
 }
 
 resource "aws_lambda_permission" "allow_api_gateway_rerun_analysis" {

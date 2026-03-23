@@ -27,7 +27,7 @@ resource "aws_bedrockagentcore_agent_runtime" "incident_response" {
 
   agent_runtime_artifact {
     container_configuration {
-      container_uri = "public.ecr.aws/bedrockagentcore/python-runtime:latest"
+      container_uri = "public.ecr.aws/bedrockagentcore/python-runtime:${var.agentcore_container_tag}"
     }
   }
 

@@ -105,6 +105,13 @@ variable "agentcore_idle_session_ttl_seconds" {
   default     = 3600
 }
 
+variable "api_key" {
+  description = "API key value that callers must supply in the X-Api-Key header. Stored in Secrets Manager."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "agentcore_container_tag" {
   description = "Tag of the public.ecr.aws/bedrockagentcore/python-runtime image used by the AgentCore runtime. Pin to a specific digest or dated tag in production rather than 'latest'."
   type        = string

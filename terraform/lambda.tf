@@ -2,6 +2,12 @@
 # Lambda packaging (zip archives)
 ####################################
 
+data "archive_file" "api_authorizer" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/api_authorizer"
+  output_path = "${path.module}/../dist/api_authorizer.zip"
+}
+
 data "archive_file" "enrich_alert" {
   type        = "zip"
   source_dir  = "${path.module}/../lambdas/enrich_alert"
@@ -65,6 +71,11 @@ data "archive_file" "rerun_analysis" {
 ####################################
 # CloudWatch Log Groups for Lambdas
 ####################################
+
+resource "aws_cloudwatch_log_group" "api_authorizer" {
+  name              = "/aws/lambda/${var.project_name}-api-authorizer"
+  retention_in_days = var.log_retention_days
+}
 
 resource "aws_cloudwatch_log_group" "enrich_alert" {
   name              = "/aws/lambda/${var.project_name}-enrich-alert"
@@ -155,6 +166,10 @@ resource "aws_lambda_function" "enrich_alert" {
     variables = local.lambda_common_env
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.enrich_alert]
 }
 
@@ -176,6 +191,10 @@ resource "aws_lambda_function" "collect_artifacts" {
 
   environment {
     variables = local.lambda_common_env
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.collect_artifacts]
@@ -201,6 +220,10 @@ resource "aws_lambda_function" "ai_analysis" {
     variables = local.lambda_common_env
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.ai_analysis]
 }
 
@@ -222,6 +245,10 @@ resource "aws_lambda_function" "store_artifacts" {
 
   environment {
     variables = local.lambda_common_env
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.store_artifacts]
@@ -247,6 +274,10 @@ resource "aws_lambda_function" "notify_siem" {
     variables = local.lambda_common_env
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.notify_siem]
 }
 
@@ -269,6 +300,10 @@ resource "aws_lambda_function" "approve_actions" {
     variables = {
       AWS_DEFAULT_REGION = var.aws_region
     }
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.approve_actions]
@@ -296,6 +331,10 @@ resource "aws_lambda_function" "execute_actions" {
     }
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.execute_actions]
 }
 
@@ -319,6 +358,10 @@ resource "aws_lambda_function" "list_investigations" {
       AWS_DEFAULT_REGION    = var.aws_region
       SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.incident_response.arn
     }
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
   depends_on = [aws_cloudwatch_log_group.list_investigations]
@@ -347,6 +390,10 @@ resource "aws_lambda_function" "get_investigation" {
     }
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.get_investigation]
 }
 
@@ -372,5 +419,42 @@ resource "aws_lambda_function" "rerun_analysis" {
     }
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
   depends_on = [aws_cloudwatch_log_group.rerun_analysis]
+}
+
+####################################
+# Lambda – api_authorizer
+#
+# REQUEST-type Lambda authorizer for API Gateway.
+# Validates the X-Api-Key header against the value stored in Secrets Manager.
+# Returns a simple boolean: true = allow, false = deny.
+####################################
+
+resource "aws_lambda_function" "api_authorizer" {
+  function_name    = "${var.project_name}-api-authorizer"
+  description      = "Validates the X-Api-Key header against the Cohort API key stored in Secrets Manager"
+  filename         = data.archive_file.api_authorizer.output_path
+  source_code_hash = data.archive_file.api_authorizer.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      AWS_DEFAULT_REGION   = var.aws_region
+      API_KEY_SECRET_ARN   = aws_secretsmanager_secret.api_key.arn
+    }
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
+  depends_on = [aws_cloudwatch_log_group.api_authorizer]
 }
