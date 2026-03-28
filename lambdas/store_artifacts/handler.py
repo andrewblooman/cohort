@@ -216,7 +216,6 @@ def lambda_handler(event: dict, context: Any) -> dict:  # noqa: ARG001
         "resource_type": event.get("resource_type", ""),
         "resource_id": event.get("resource_id", ""),
         "description": event.get("description", ""),
-        "secops_case_id": event.get("secops_case_id", ""),
     }
 
     stored_keys: list[str] = []

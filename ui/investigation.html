@@ -648,8 +648,7 @@
       renderActions(analysis.proposed_actions);
 
       // Artifacts
-      document.getElementById('art-bucket').textContent = summary.incident?.secops_case_id
-        ? `(from s3 artifacts bucket)` : (artifacts.s3_bucket || '–');
+      document.getElementById('art-bucket').textContent = artifacts.s3_bucket || '–';
       document.getElementById('art-prefix').textContent = `${_ticket}/`;
 
       // SFN status

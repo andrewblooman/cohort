@@ -32,10 +32,16 @@ data "archive_file" "store_artifacts" {
   output_path = "${path.module}/../dist/store_artifacts.zip"
 }
 
-data "archive_file" "notify_siem" {
+data "archive_file" "generate_incident_id" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambdas/notify_siem"
-  output_path = "${path.module}/../dist/notify_siem.zip"
+  source_dir  = "${path.module}/../lambdas/generate_incident_id"
+  output_path = "${path.module}/../dist/generate_incident_id.zip"
+}
+
+data "archive_file" "notify" {
+  type        = "zip"
+  source_dir  = "${path.module}/../lambdas/notify"
+  output_path = "${path.module}/../dist/notify.zip"
 }
 
 data "archive_file" "approve_actions" {
@@ -97,8 +103,13 @@ resource "aws_cloudwatch_log_group" "store_artifacts" {
   retention_in_days = var.log_retention_days
 }
 
-resource "aws_cloudwatch_log_group" "notify_siem" {
-  name              = "/aws/lambda/${var.project_name}-notify-siem"
+resource "aws_cloudwatch_log_group" "generate_incident_id" {
+  name              = "/aws/lambda/${var.project_name}-generate-incident-id"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_log_group" "notify" {
+  name              = "/aws/lambda/${var.project_name}-notify"
   retention_in_days = var.log_retention_days
 }
 
@@ -133,16 +144,13 @@ resource "aws_cloudwatch_log_group" "rerun_analysis" {
 
 locals {
   lambda_common_env = {
-    ARTIFACTS_BUCKET                     = aws_s3_bucket.artifacts.id
-    BEDROCK_MODEL_ID                     = var.bedrock_model_id
-    GOOGLE_SECOPS_API_ENDPOINT           = var.google_secops_api_endpoint
-    GOOGLE_SECOPS_CUSTOMER_ID            = var.google_secops_customer_id
-    GOOGLE_SECOPS_CREDENTIALS_SECRET_ARN = var.google_secops_credentials_secret_arn
-    AWS_ACCOUNT_ID                       = data.aws_caller_identity.current.account_id
-    ENABLE_VPC_FLOW_LOG_COLLECTION       = tostring(var.enable_vpc_flow_log_collection)
-    ENABLE_CLOUDTRAIL_COLLECTION         = tostring(var.enable_cloudtrail_collection)
-    AGENTCORE_AGENT_RUNTIME_ARN          = aws_bedrockagentcore_agent_runtime.incident_response.agent_runtime_arn
-    AGENTCORE_MEMORY_STORE_ID            = aws_bedrockagentcore_memory.incident_memory.id
+    ARTIFACTS_BUCKET               = aws_s3_bucket.artifacts.id
+    BEDROCK_MODEL_ID               = var.bedrock_model_id
+    AWS_ACCOUNT_ID                 = data.aws_caller_identity.current.account_id
+    ENABLE_VPC_FLOW_LOG_COLLECTION = tostring(var.enable_vpc_flow_log_collection)
+    ENABLE_CLOUDTRAIL_COLLECTION   = tostring(var.enable_cloudtrail_collection)
+    AGENTCORE_AGENT_RUNTIME_ARN    = aws_bedrockagentcore_agent_runtime.incident_response.agent_runtime_arn
+    AGENTCORE_MEMORY_STORE_ID      = aws_bedrockagentcore_memory.incident_memory.id
   }
 }
 
@@ -255,30 +263,61 @@ resource "aws_lambda_function" "store_artifacts" {
 }
 
 ####################################
-# Lambda – notify_siem
+# Lambda – generate_incident_id
 ####################################
 
-resource "aws_lambda_function" "notify_siem" {
-  function_name    = "${var.project_name}-notify-siem"
-  description      = "Sends the AI recommendation back to Google SecOps (Chronicle) as a case comment/finding update"
-  filename         = data.archive_file.notify_siem.output_path
-  source_code_hash = data.archive_file.notify_siem.output_base64sha256
+resource "aws_lambda_function" "generate_incident_id" {
+  function_name    = "${var.project_name}-generate-incident-id"
+  description      = "Atomically generates a sequential incident ID (inc-0001) from DynamoDB and normalises the GuardDuty finding"
+  filename         = data.archive_file.generate_incident_id.output_path
+  source_code_hash = data.archive_file.generate_incident_id.output_base64sha256
   runtime          = "python3.12"
   handler          = "handler.lambda_handler"
   role             = aws_iam_role.lambda_exec.arn
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory_mb
-  layers           = [aws_lambda_layer_version.shared.arn]
 
   environment {
-    variables = local.lambda_common_env
+    variables = {
+      INCIDENT_COUNTER_TABLE = aws_dynamodb_table.incident_counter.name
+    }
   }
 
   dead_letter_config {
     target_arn = aws_sqs_queue.lambda_dlq.arn
   }
 
-  depends_on = [aws_cloudwatch_log_group.notify_siem]
+  depends_on = [aws_cloudwatch_log_group.generate_incident_id]
+}
+
+####################################
+# Lambda – notify
+####################################
+
+resource "aws_lambda_function" "notify" {
+  function_name    = "${var.project_name}-notify"
+  description      = "Stores pending_approval.json to S3 and sends a Slack notification when analyst review is needed; posts execution results after remediation"
+  filename         = data.archive_file.notify.output_path
+  source_code_hash = data.archive_file.notify.output_base64sha256
+  runtime          = "python3.12"
+  handler          = "handler.lambda_handler"
+  role             = aws_iam_role.lambda_exec.arn
+  timeout          = var.lambda_timeout
+  memory_size      = var.lambda_memory_mb
+
+  environment {
+    variables = {
+      ARTIFACTS_BUCKET         = aws_s3_bucket.artifacts.id
+      SLACK_WEBHOOK_SECRET_ARN = var.slack_webhook_secret_arn
+      APPROVAL_API_ENDPOINT    = "https://${aws_apigatewayv2_api.approval.id}.execute-api.${var.aws_region}.amazonaws.com"
+    }
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
+  depends_on = [aws_cloudwatch_log_group.notify]
 }
 
 ####################################

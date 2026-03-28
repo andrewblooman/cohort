@@ -17,10 +17,41 @@ resource "aws_sfn_state_machine" "incident_response" {
   type     = "STANDARD"
 
   definition = jsonencode({
-    Comment = "AI-assisted cloud incident response workflow. Triggered by Google SecOps via EventBridge."
-    StartAt = "EnrichAlert"
+    Comment = "AI-assisted cloud incident response workflow. Triggered by native GuardDuty findings via EventBridge."
+    StartAt = "GenerateIncidentId"
 
     States = {
+      GenerateIncidentId = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = aws_lambda_function.generate_incident_id.arn
+          "Payload.$"  = "$"
+        }
+        ResultSelector = {
+          "ticket_number.$"  = "$.Payload.ticket_number"
+          "finding_id.$"     = "$.Payload.finding_id"
+          "alert_type.$"     = "$.Payload.alert_type"
+          "severity.$"       = "$.Payload.severity"
+          "description.$"    = "$.Payload.description"
+          "account_id.$"     = "$.Payload.account_id"
+          "region.$"         = "$.Payload.region"
+          "resource_type.$"  = "$.Payload.resource_type"
+          "resource_id.$"    = "$.Payload.resource_id"
+        }
+        ResultPath = null
+        OutputPath = "$.Payload"
+        Retry = [
+          {
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
+            IntervalSeconds = 2
+            MaxAttempts     = 3
+            BackoffRate     = 2
+          }
+        ]
+        Next = "EnrichAlert"
+      }
+
       EnrichAlert = {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke"
@@ -57,7 +88,6 @@ resource "aws_sfn_state_machine" "incident_response" {
           "finding_id.$"     = "$.finding_id"
           "alert_type.$"     = "$.alert_type"
           "severity.$"       = "$.severity"
-          "secops_case_id.$" = "$.secops_case_id"
           enrichment_result = {
             enrichment = {
               finding      = {}
@@ -84,7 +114,6 @@ resource "aws_sfn_state_machine" "incident_response" {
             "resource_id.$"       = "$.resource_id"
             "account_id.$"        = "$.account_id"
             "region.$"            = "$.region"
-            "secops_case_id.$"    = "$.secops_case_id"
             "enrichment_result.$" = "$.enrichment_result"
           }
         }
@@ -117,7 +146,6 @@ resource "aws_sfn_state_machine" "incident_response" {
           "finding_id.$"         = "$.finding_id"
           "alert_type.$"         = "$.alert_type"
           "severity.$"           = "$.severity"
-          "secops_case_id.$"     = "$.secops_case_id"
           "enrichment_result.$"  = "$.enrichment_result"
           artifacts_result = {
             artifacts = {
@@ -145,7 +173,6 @@ resource "aws_sfn_state_machine" "incident_response" {
             "resource_type.$"     = "$.resource_type"
             "resource_id.$"       = "$.resource_id"
             "description.$"       = "$.description"
-            "secops_case_id.$"    = "$.secops_case_id"
             "enrichment_result.$" = "$.enrichment_result"
             "artifacts_result.$"  = "$.artifacts_result"
           }
@@ -179,7 +206,6 @@ resource "aws_sfn_state_machine" "incident_response" {
           "finding_id.$"         = "$.finding_id"
           "alert_type.$"         = "$.alert_type"
           "severity.$"           = "$.severity"
-          "secops_case_id.$"     = "$.secops_case_id"
           "enrichment_result.$"  = "$.enrichment_result"
           "artifacts_result.$"   = "$.artifacts_result"
           analysis_result = {
@@ -213,7 +239,6 @@ resource "aws_sfn_state_machine" "incident_response" {
             "resource_type.$"     = "$.resource_type"
             "resource_id.$"       = "$.resource_id"
             "description.$"       = "$.description"
-            "secops_case_id.$"    = "$.secops_case_id"
             "enrichment_result.$" = "$.enrichment_result"
             "artifacts_result.$"  = "$.artifacts_result"
             "analysis_result.$"   = "$.analysis_result"
@@ -231,18 +256,21 @@ resource "aws_sfn_state_machine" "incident_response" {
             BackoffRate     = 2
           }
         ]
-        Next = "NotifySIEM"
+        Next = "Notify"
       }
 
-      NotifySIEM = {
+      Notify = {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke.waitForTaskToken"
         Parameters = {
-          FunctionName = aws_lambda_function.notify_siem.arn
+          FunctionName = aws_lambda_function.notify.arn
           Payload = {
             "ticket_number.$"     = "$.ticket_number"
             "finding_id.$"        = "$.finding_id"
-            "secops_case_id.$"    = "$.secops_case_id"
+            "alert_type.$"        = "$.alert_type"
+            "severity.$"          = "$.severity"
+            "account_id.$"        = "$.account_id"
+            "region.$"            = "$.region"
             "analysis_result.$"   = "$.analysis_result"
             "store_result.$"      = "$.store_result"
             "task_token.$"        = "$$.Task.Token"
@@ -285,7 +313,6 @@ resource "aws_sfn_state_machine" "incident_response" {
         Type = "Pass"
         Parameters = {
           "ticket_number.$"  = "$.ticket_number"
-          "secops_case_id.$" = "$.secops_case_id"
           timeout_reason     = "Analyst approval window expired after 7 days. No actions were executed."
         }
         Next = "WorkflowComplete"
@@ -295,7 +322,6 @@ resource "aws_sfn_state_machine" "incident_response" {
         Type = "Pass"
         Parameters = {
           "ticket_number.$"  = "$.ticket_number"
-          "secops_case_id.$" = "$.secops_case_id"
           rejection_reason   = "Analyst declined to authorise proposed actions. No actions were executed."
         }
         Next = "WorkflowComplete"
@@ -308,7 +334,6 @@ resource "aws_sfn_state_machine" "incident_response" {
           FunctionName = aws_lambda_function.execute_actions.arn
           Payload = {
             "ticket_number.$"   = "$.ticket_number"
-            "secops_case_id.$"  = "$.secops_case_id"
             "approval_result.$" = "$.approval_result"
           }
         }
@@ -338,7 +363,6 @@ resource "aws_sfn_state_machine" "incident_response" {
         Type = "Pass"
         Parameters = {
           "ticket_number.$"  = "$.ticket_number"
-          "secops_case_id.$" = "$.secops_case_id"
           execution_result = {
             execution = {
               total_actions = 0
@@ -356,10 +380,9 @@ resource "aws_sfn_state_machine" "incident_response" {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
-          FunctionName = aws_lambda_function.notify_siem.arn
+          FunctionName = aws_lambda_function.notify.arn
           Payload = {
             "ticket_number.$"    = "$.ticket_number"
-            "secops_case_id.$"   = "$.secops_case_id"
             "execution_result.$" = "$.execution_result"
             notify_mode          = "execution_results"
           }

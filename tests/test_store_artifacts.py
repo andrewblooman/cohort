@@ -54,7 +54,6 @@ SAMPLE_EVENT = {
     "account_id": "123456789012",
     "region": "eu-west-1",
     "description": "Cryptocurrency mining detected.",
-    "secops_case_id": "CASE-300",
     "enrichment_result": {
         "enrichment": {
             "finding": {"Id": "ghi012"},
@@ -108,7 +107,6 @@ class TestBuildTextRecommendation:
             "resource_type": "Instance",
             "resource_id": "i-test1234",
             "description": "Cryptocurrency mining detected.",
-            "secops_case_id": "CASE-300",
         }
 
     def test_contains_ticket_number(self):

@@ -106,7 +106,6 @@ def list_investigations(sfn: Any, limit: int, status_filter: str | None) -> list
             "finding_id": input_data.get("finding_id", ""),
             "account_id": input_data.get("account_id", ""),
             "region": input_data.get("region", ""),
-            "secops_case_id": input_data.get("secops_case_id", ""),
             "execution_arn": exec_arn,
             "execution_name": summary.get("name", ""),
             "status": summary.get("status", ""),

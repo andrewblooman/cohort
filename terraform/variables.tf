@@ -46,35 +46,16 @@ variable "bedrock_model_id" {
   default     = "us.anthropic.claude-sonnet-4-5-20250514-v1:0"
 }
 
-variable "google_secops_api_endpoint" {
-  description = "Google SecOps (Chronicle) API base endpoint for sending back recommendations"
-  type        = string
-  default     = ""
-}
-
-variable "google_secops_customer_id" {
-  description = "Google SecOps customer ID (used when sending findings back to the SIEM)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "google_secops_credentials_secret_arn" {
-  description = "ARN of the AWS Secrets Manager secret containing Google SecOps service-account credentials JSON"
-  type        = string
-  default     = ""
-}
-
-variable "eventbridge_source_filter" {
-  description = "EventBridge event source pattern used to match events forwarded from the SIEM"
-  type        = string
-  default     = "com.google.secops"
-}
-
 variable "log_retention_days" {
   description = "CloudWatch Logs retention period in days"
   type        = number
   default     = 30
+}
+
+variable "slack_webhook_secret_arn" {
+  description = "ARN of the Secrets Manager secret containing the Slack Incoming Webhook URL. Leave empty to disable Slack notifications."
+  type        = string
+  default     = ""
 }
 
 variable "enable_vpc_flow_log_collection" {

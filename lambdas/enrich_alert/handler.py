@@ -3,9 +3,9 @@ enrich_alert/handler.py
 
 Lambda function: Enrich Alert
 
-Triggered as the first step of the incident-response Step Functions workflow.
-Accepts a GuardDuty-based alert payload forwarded from Google SecOps via
-EventBridge and enriches it with:
+Triggered as the second step of the incident-response Step Functions workflow
+(after ``generate_incident_id``).  Accepts the normalised workflow payload and
+enriches it with:
 
   * Full GuardDuty finding details
   * CloudTrail events related to the affected resource

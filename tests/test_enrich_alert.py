@@ -40,7 +40,6 @@ SAMPLE_EVENT = {
     "account_id": "123456789012",
     "region": "us-east-1",
     "description": "An EC2 instance is communicating with a known malicious IP.",
-    "secops_case_id": "CASE-999",
 }
 
 SAMPLE_FINDING = {

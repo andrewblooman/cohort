@@ -43,7 +43,6 @@ _ORIGINAL_INPUT = json.dumps({
     "finding_id": "finding-xyz",
     "account_id": "123456789012",
     "region": "us-east-1",
-    "secops_case_id": "case-999",
 })
 
 _RUNNING_EXEC = {

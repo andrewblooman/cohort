@@ -152,7 +152,7 @@ resource "aws_iam_role_policy" "lambda_permissions" {
         ]
         Resource = "*"
       },
-      # Secrets Manager – retrieve Google SecOps credentials and the API key
+      # Secrets Manager – retrieve Slack webhook URL and the API key
       {
         Sid    = "SecretsManagerRead"
         Effect = "Allow"
@@ -160,9 +160,20 @@ resource "aws_iam_role_policy" "lambda_permissions" {
           "secretsmanager:GetSecretValue",
         ]
         Resource = [
-          var.google_secops_credentials_secret_arn != "" ? var.google_secops_credentials_secret_arn : "arn:aws:secretsmanager:*:*:secret:${var.project_name}/*",
+          var.slack_webhook_secret_arn != "" ? var.slack_webhook_secret_arn : "arn:aws:secretsmanager:*:*:secret:${var.project_name}/*",
           aws_secretsmanager_secret.api_key.arn,
         ]
+      },
+      # DynamoDB – atomic incident ID counter used by generate_incident_id Lambda
+      {
+        Sid    = "DynamoDBIncidentCounter"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem",
+          "dynamodb:DescribeTable",
+        ]
+        Resource = aws_dynamodb_table.incident_counter.arn
       },
       # SQS – write failed async invocations to the dead-letter queue
       {
@@ -339,11 +350,12 @@ resource "aws_iam_role_policy" "sfn_permissions" {
           "lambda:InvokeFunction",
         ]
         Resource = [
+          aws_lambda_function.generate_incident_id.arn,
           aws_lambda_function.enrich_alert.arn,
           aws_lambda_function.collect_artifacts.arn,
           aws_lambda_function.ai_analysis.arn,
           aws_lambda_function.store_artifacts.arn,
-          aws_lambda_function.notify_siem.arn,
+          aws_lambda_function.notify.arn,
           aws_lambda_function.execute_actions.arn,
         ]
       },

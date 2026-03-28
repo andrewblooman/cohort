@@ -24,7 +24,7 @@ ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
 
 INVESTIGATIONS = [
     {
-        "ticket_number":  "INC-2024-0042",
+        "ticket_number":  "inc-0042",
         "alert_type":     "UnauthorizedAccess:EC2/TorIPCaller",
         "severity":       "HIGH",
         "verdict":        "TRUE_POSITIVE",
@@ -34,7 +34,7 @@ INVESTIGATIONS = [
         "region":         "eu-west-1",
     },
     {
-        "ticket_number":  "INC-2024-0043",
+        "ticket_number":  "inc-0043",
         "alert_type":     "PrivilegeEscalation:IAMUser/AdministrativePermissions",
         "severity":       "HIGH",
         "verdict":        "INCONCLUSIVE",
@@ -44,7 +44,7 @@ INVESTIGATIONS = [
         "region":         "us-east-1",
     },
     {
-        "ticket_number":  "INC-2024-0044",
+        "ticket_number":  "inc-0044",
         "alert_type":     "Recon:EC2/PortProbeUnprotectedPort",
         "severity":       "MEDIUM",
         "verdict":        "FALSE_POSITIVE",
@@ -54,7 +54,7 @@ INVESTIGATIONS = [
         "region":         "eu-west-2",
     },
     {
-        "ticket_number":  "INC-2024-0045",
+        "ticket_number":  "inc-0045",
         "alert_type":     "Behavior:EC2/NetworkPortUnusual",
         "severity":       "MEDIUM",
         "verdict":        None,
@@ -64,7 +64,7 @@ INVESTIGATIONS = [
         "region":         "eu-west-1",
     },
     {
-        "ticket_number":  "INC-2024-0046",
+        "ticket_number":  "inc-0046",
         "alert_type":     "CryptoCurrency:EC2/BitcoinTool.B!DNS",
         "severity":       "HIGH",
         "verdict":        "TRUE_POSITIVE",
@@ -74,7 +74,7 @@ INVESTIGATIONS = [
         "region":         "ap-southeast-1",
     },
     {
-        "ticket_number":  "INC-2024-0047",
+        "ticket_number":  "inc-0047",
         "alert_type":     "Trojan:EC2/BlackholeTraffic",
         "severity":       "HIGH",
         "verdict":        None,
@@ -84,7 +84,7 @@ INVESTIGATIONS = [
         "region":         "eu-west-1",
     },
     {
-        "ticket_number":  "INC-2024-0048",
+        "ticket_number":  "inc-0048",
         "alert_type":     "Policy:S3/BucketPublicAccessGranted",
         "severity":       "LOW",
         "verdict":        "FALSE_POSITIVE",
@@ -96,12 +96,12 @@ INVESTIGATIONS = [
 ]
 
 INVESTIGATION_DETAILS = {
-    "INC-2024-0042": {
+    "inc-0042": {
         "execution": {"status": "SUCCEEDED"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0042",
+                "ticket_number":  "inc-0042",
                 "alert_type":     "UnauthorizedAccess:EC2/TorIPCaller",
                 "severity":       "HIGH",
                 "finding_id":     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -182,15 +182,15 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0043": {
+    "inc-0043": {
         "execution": {"status": "RUNNING"},
         "pending_approval": {
             "task_token": "mock-task-token-abc123xyz",
-            "ticket_number": "INC-2024-0043",
+            "ticket_number": "inc-0043",
         },
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0043",
+                "ticket_number":  "inc-0043",
                 "alert_type":     "PrivilegeEscalation:IAMUser/AdministrativePermissions",
                 "severity":       "HIGH",
                 "finding_id":     "b2c3d4e5-f6a7-8901-bcde-f12345678901",
@@ -262,12 +262,12 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0044": {
+    "inc-0044": {
         "execution": {"status": "SUCCEEDED"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0044",
+                "ticket_number":  "inc-0044",
                 "alert_type":     "Recon:EC2/PortProbeUnprotectedPort",
                 "severity":       "MEDIUM",
                 "finding_id":     "c3d4e5f6-a7b8-9012-cdef-123456789012",
@@ -322,12 +322,12 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0045": {
+    "inc-0045": {
         "execution": {"status": "RUNNING"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0045",
+                "ticket_number":  "inc-0045",
                 "alert_type":     "Behavior:EC2/NetworkPortUnusual",
                 "severity":       "MEDIUM",
                 "finding_id":     "d4e5f6a7-b8c9-0123-defa-234567890123",
@@ -343,12 +343,12 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0046": {
+    "inc-0046": {
         "execution": {"status": "SUCCEEDED"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0046",
+                "ticket_number":  "inc-0046",
                 "alert_type":     "CryptoCurrency:EC2/BitcoinTool.B!DNS",
                 "severity":       "HIGH",
                 "finding_id":     "e5f6a7b8-c9d0-1234-efab-345678901234",
@@ -417,12 +417,12 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0047": {
+    "inc-0047": {
         "execution": {"status": "FAILED"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0047",
+                "ticket_number":  "inc-0047",
                 "alert_type":     "Trojan:EC2/BlackholeTraffic",
                 "severity":       "HIGH",
                 "finding_id":     "f6a7b8c9-d0e1-2345-fabc-456789012345",
@@ -438,12 +438,12 @@ INVESTIGATION_DETAILS = {
         },
     },
 
-    "INC-2024-0048": {
+    "inc-0048": {
         "execution": {"status": "SUCCEEDED"},
         "pending_approval": None,
         "incident_summary": {
             "incident": {
-                "ticket_number":  "INC-2024-0048",
+                "ticket_number":  "inc-0048",
                 "alert_type":     "Policy:S3/BucketPublicAccessGranted",
                 "severity":       "LOW",
                 "finding_id":     "a7b8c9d0-e1f2-3456-abcd-567890123456",
@@ -636,7 +636,7 @@ if __name__ == "__main__":
 ║        Cohort UI Mock Server                         ║
 ╠══════════════════════════════════════════════════════╣
 ║  Dashboard:      http://localhost:{PORT}                ║
-║  Investigation:  http://localhost:{PORT}/investigation.html?ticket=INC-2024-0042  ║
+║  Investigation:  http://localhost:{PORT}/investigation.html?ticket=inc-0042  ║
 ║                                                      ║
 ║  Press Ctrl+C to stop                                ║
 ╚══════════════════════════════════════════════════════╝

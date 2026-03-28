@@ -31,7 +31,6 @@ exec_handler = _load_handler("execute_actions_handler", "../lambdas/execute_acti
 
 SAMPLE_EVENT = {
     "ticket_number": "INC-010",
-    "secops_case_id": "CASE-500",
     "approval_result": {
         "analyst_id": "analyst@company.com",
         "approval_notes": "Confirmed",

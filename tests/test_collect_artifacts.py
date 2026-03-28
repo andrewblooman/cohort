@@ -38,7 +38,6 @@ SAMPLE_EVENT = {
     "resource_id": "i-aabbccddeeff",
     "account_id": "123456789012",
     "region": "us-east-1",
-    "secops_case_id": "CASE-100",
     "enrichment_result": {
         "enrichment": {
             "finding": {"Id": "abc456", "Type": "Recon:EC2/PortProbeUnprotectedPort"},

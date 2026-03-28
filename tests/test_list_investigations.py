@@ -59,7 +59,6 @@ _EXEC_INPUTS = {
         "finding_id": "finding-abc",
         "account_id": "123456789012",
         "region": "us-east-1",
-        "secops_case_id": "case-001",
     },
     "exec-002": {
         "ticket_number": "TICKET-002",
@@ -68,7 +67,6 @@ _EXEC_INPUTS = {
         "finding_id": "finding-def",
         "account_id": "123456789012",
         "region": "eu-west-1",
-        "secops_case_id": "case-002",
     },
 }
 
