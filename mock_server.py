@@ -27,77 +27,119 @@ INVESTIGATIONS = [
         "ticket_number":  "inc-0042",
         "alert_type":     "UnauthorizedAccess:EC2/TorIPCaller",
         "severity":       "HIGH",
-        "verdict":        "TRUE_POSITIVE",
-        "status":         "SUCCEEDED",
-        "start_date":     "2024-03-20T14:32:11Z",
+        "finding_id":     "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
         "account_id":     "123456789012",
         "region":         "eu-west-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0042",
+        "execution_name": "inc-0042-20240320T143211Z",
+        "status":         "SUCCEEDED",
+        "start_date":     "2024-03-20T14:32:11Z",
+        "stop_date":      "2024-03-20T14:38:02Z",
+        "verdict":        "TRUE_POSITIVE",
+        "confidence":     "HIGH",
     },
     {
         "ticket_number":  "inc-0043",
         "alert_type":     "PrivilegeEscalation:IAMUser/AdministrativePermissions",
         "severity":       "HIGH",
-        "verdict":        "INCONCLUSIVE",
-        "status":         "RUNNING",
-        "start_date":     "2024-03-21T08:17:44Z",
+        "finding_id":     "b2c3d4e5-f6a7-8901-bcde-f12345678901",
         "account_id":     "123456789012",
         "region":         "us-east-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0043",
+        "execution_name": "inc-0043-20240321T081744Z",
+        "status":         "RUNNING",
+        "start_date":     "2024-03-21T08:17:44Z",
+        "stop_date":      None,
+        "verdict":        "INCONCLUSIVE",
+        "confidence":     "MEDIUM",
     },
     {
         "ticket_number":  "inc-0044",
         "alert_type":     "Recon:EC2/PortProbeUnprotectedPort",
         "severity":       "MEDIUM",
-        "verdict":        "FALSE_POSITIVE",
-        "status":         "SUCCEEDED",
-        "start_date":     "2024-03-21T11:05:29Z",
+        "finding_id":     "c3d4e5f6-a7b8-9012-cdef-123456789012",
         "account_id":     "987654321098",
         "region":         "eu-west-2",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0044",
+        "execution_name": "inc-0044-20240321T110529Z",
+        "status":         "SUCCEEDED",
+        "start_date":     "2024-03-21T11:05:29Z",
+        "stop_date":      "2024-03-21T11:11:43Z",
+        "verdict":        "FALSE_POSITIVE",
+        "confidence":     "HIGH",
     },
     {
         "ticket_number":  "inc-0045",
         "alert_type":     "Behavior:EC2/NetworkPortUnusual",
         "severity":       "MEDIUM",
-        "verdict":        None,
-        "status":         "RUNNING",
-        "start_date":     "2024-03-22T07:55:02Z",
+        "finding_id":     "d4e5f6a7-b8c9-0123-defa-234567890123",
         "account_id":     "123456789012",
         "region":         "eu-west-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0045",
+        "execution_name": "inc-0045-20240322T075502Z",
+        "status":         "RUNNING",
+        "start_date":     "2024-03-22T07:55:02Z",
+        "stop_date":      None,
+        "verdict":        None,
+        "confidence":     None,
     },
     {
         "ticket_number":  "inc-0046",
         "alert_type":     "CryptoCurrency:EC2/BitcoinTool.B!DNS",
         "severity":       "HIGH",
-        "verdict":        "TRUE_POSITIVE",
-        "status":         "SUCCEEDED",
-        "start_date":     "2024-03-22T09:12:55Z",
+        "finding_id":     "e5f6a7b8-c9d0-1234-efab-345678901234",
         "account_id":     "123456789012",
         "region":         "ap-southeast-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0046",
+        "execution_name": "inc-0046-20240322T091255Z",
+        "status":         "SUCCEEDED",
+        "start_date":     "2024-03-22T09:12:55Z",
+        "stop_date":      "2024-03-22T09:19:07Z",
+        "verdict":        "TRUE_POSITIVE",
+        "confidence":     "HIGH",
     },
     {
         "ticket_number":  "inc-0047",
         "alert_type":     "Trojan:EC2/BlackholeTraffic",
         "severity":       "HIGH",
-        "verdict":        None,
-        "status":         "FAILED",
-        "start_date":     "2024-03-22T10:44:18Z",
+        "finding_id":     "f6a7b8c9-d0e1-2345-fabc-456789012345",
         "account_id":     "555555555555",
         "region":         "eu-west-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0047",
+        "execution_name": "inc-0047-20240322T104418Z",
+        "status":         "FAILED",
+        "start_date":     "2024-03-22T10:44:18Z",
+        "stop_date":      "2024-03-22T10:44:55Z",
+        "verdict":        None,
+        "confidence":     None,
     },
     {
         "ticket_number":  "inc-0048",
         "alert_type":     "Policy:S3/BucketPublicAccessGranted",
         "severity":       "LOW",
-        "verdict":        "FALSE_POSITIVE",
-        "status":         "SUCCEEDED",
-        "start_date":     "2024-03-22T13:01:37Z",
+        "finding_id":     "a7b8c9d0-e1f2-3456-abcd-567890123456",
         "account_id":     "123456789012",
         "region":         "eu-west-1",
+        "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0048",
+        "execution_name": "inc-0048-20240322T130137Z",
+        "status":         "SUCCEEDED",
+        "start_date":     "2024-03-22T13:01:37Z",
+        "stop_date":      "2024-03-22T13:08:14Z",
+        "verdict":        "FALSE_POSITIVE",
+        "confidence":     "HIGH",
     },
 ]
 
 INVESTIGATION_DETAILS = {
     "inc-0042": {
-        "execution": {"status": "SUCCEEDED"},
+        "ticket_number": "inc-0042",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0042",
+            "execution_name": "inc-0042-20240320T143211Z",
+            "status":         "SUCCEEDED",
+            "start_date":     "2024-03-20T14:32:11Z",
+            "stop_date":      "2024-03-20T14:38:02Z",
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -183,7 +225,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0043": {
-        "execution": {"status": "RUNNING"},
+        "ticket_number": "inc-0043",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0043",
+            "execution_name": "inc-0043-20240321T081744Z",
+            "status":         "RUNNING",
+            "start_date":     "2024-03-21T08:17:44Z",
+            "stop_date":      None,
+        },
         "pending_approval": {
             "task_token": "mock-task-token-abc123xyz",
             "ticket_number": "inc-0043",
@@ -263,7 +312,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0044": {
-        "execution": {"status": "SUCCEEDED"},
+        "ticket_number": "inc-0044",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0044",
+            "execution_name": "inc-0044-20240321T110529Z",
+            "status":         "SUCCEEDED",
+            "start_date":     "2024-03-21T11:05:29Z",
+            "stop_date":      "2024-03-21T11:11:43Z",
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -323,7 +379,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0045": {
-        "execution": {"status": "RUNNING"},
+        "ticket_number": "inc-0045",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0045",
+            "execution_name": "inc-0045-20240322T075502Z",
+            "status":         "RUNNING",
+            "start_date":     "2024-03-22T07:55:02Z",
+            "stop_date":      None,
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -344,7 +407,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0046": {
-        "execution": {"status": "SUCCEEDED"},
+        "ticket_number": "inc-0046",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0046",
+            "execution_name": "inc-0046-20240322T091255Z",
+            "status":         "SUCCEEDED",
+            "start_date":     "2024-03-22T09:12:55Z",
+            "stop_date":      "2024-03-22T09:19:07Z",
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -418,7 +488,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0047": {
-        "execution": {"status": "FAILED"},
+        "ticket_number": "inc-0047",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0047",
+            "execution_name": "inc-0047-20240322T104418Z",
+            "status":         "FAILED",
+            "start_date":     "2024-03-22T10:44:18Z",
+            "stop_date":      "2024-03-22T10:44:55Z",
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -439,7 +516,14 @@ INVESTIGATION_DETAILS = {
     },
 
     "inc-0048": {
-        "execution": {"status": "SUCCEEDED"},
+        "ticket_number": "inc-0048",
+        "execution": {
+            "execution_arn":  "arn:aws:states:eu-west-1:123456789012:execution:cohort-incident-response:inc-0048",
+            "execution_name": "inc-0048-20240322T130137Z",
+            "status":         "SUCCEEDED",
+            "start_date":     "2024-03-22T13:01:37Z",
+            "stop_date":      "2024-03-22T13:08:14Z",
+        },
         "pending_approval": None,
         "incident_summary": {
             "incident": {
@@ -518,7 +602,10 @@ class MockHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            pass
 
     def send_file(self, path, content_type):
         with open(path, "rb") as f:
@@ -530,7 +617,10 @@ class MockHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            pass
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -578,7 +668,7 @@ class MockHandler(BaseHTTPRequestHandler):
                 inv for inv in INVESTIGATIONS
                 if status_filter is None or inv["status"] == status_filter
             ]
-            self.send_json({"investigations": result})
+            self.send_json({"investigations": result, "count": len(result)})
             return
 
         # ── API: GET /investigations/{ticket} ─────────────────────────────
