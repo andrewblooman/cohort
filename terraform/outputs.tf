@@ -116,9 +116,9 @@ output "approval_api_endpoint" {
 # Web UI outputs
 ####################################
 
-output "ui_cloudfront_url" {
-  description = "HTTPS URL of the Cohort analyst dashboard (CloudFront)"
-  value       = "https://${aws_cloudfront_distribution.ui.domain_name}"
+output "ui_s3_url" {
+  description = "S3 REST endpoint URL for the Cohort analyst dashboard (accessible via VPC Interface Endpoint only)"
+  value       = "https://${aws_s3_bucket.ui.bucket_regional_domain_name}/index.html"
 }
 
 output "ui_s3_bucket" {

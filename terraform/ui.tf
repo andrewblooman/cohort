@@ -1,11 +1,17 @@
 ####################################
-# Web UI – S3 static site + CloudFront
+# Web UI – Private S3 bucket (VPC endpoint access only)
 #
-# Hosts the Cohort analyst dashboard.
+# Hosts the Cohort analyst dashboard as static files in a private S3 bucket.
+# Access is restricted to requests arriving via a corporate VPC Interface
+# Endpoint for S3 (var.ui_vpc_endpoint_id).  No public internet path exists.
 #
 # Assets are uploaded from ui/ at Terraform apply time.  The config.js
 # asset is rendered as a Terraform template so it contains the correct
 # API Gateway endpoint URL automatically.
+#
+# Access pattern:
+#   Corporate VPN / Direct Connect → VPC Interface Endpoint for S3
+#   → s3://<bucket>/index.html (private, no CloudFront)
 ####################################
 
 ####################################
@@ -36,35 +42,26 @@ resource "aws_s3_bucket_versioning" "ui" {
 }
 
 ####################################
-# CloudFront Origin Access Control
-####################################
-
-resource "aws_cloudfront_origin_access_control" "ui" {
-  name                              = "${var.project_name}-ui-oac"
-  description                       = "OAC for Cohort web UI S3 bucket"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
-####################################
-# S3 bucket policy – CloudFront OAC only
+# S3 bucket policy – VPC endpoint only
+#
+# AWS does not classify an aws:SourceVpce-conditioned policy as "public",
+# so block_public_policy above does not conflict with this grant.
 ####################################
 
 data "aws_iam_policy_document" "ui_bucket" {
   statement {
-    sid     = "AllowCloudFrontOAC"
+    sid     = "AllowVpcEndpointGetObject"
     effect  = "Allow"
     actions = ["s3:GetObject"]
     principals {
-      type        = "Service"
-      identifiers = ["cloudfront.amazonaws.com"]
+      type        = "*"
+      identifiers = ["*"]
     }
     resources = ["${aws_s3_bucket.ui.arn}/*"]
     condition {
       test     = "StringEquals"
-      variable = "AWS:SourceArn"
-      values   = [aws_cloudfront_distribution.ui.arn]
+      variable = "aws:SourceVpce"
+      values   = [var.ui_vpc_endpoint_id]
     }
   }
 }
@@ -74,73 +71,6 @@ resource "aws_s3_bucket_policy" "ui" {
   policy = data.aws_iam_policy_document.ui_bucket.json
 
   depends_on = [aws_s3_bucket_public_access_block.ui]
-}
-
-####################################
-# CloudFront distribution
-####################################
-
-resource "aws_cloudfront_distribution" "ui" {
-  enabled             = true
-  default_root_object = "index.html"
-  comment             = "Cohort analyst dashboard"
-  price_class         = "PriceClass_100"
-
-  origin {
-    domain_name              = aws_s3_bucket.ui.bucket_regional_domain_name
-    origin_id                = "cohort-ui-s3"
-    origin_access_control_id = aws_cloudfront_origin_access_control.ui.id
-  }
-
-  default_cache_behavior {
-    target_origin_id       = "cohort-ui-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-
-    forwarded_values {
-      query_string = false
-      cookies { forward = "none" }
-    }
-
-    min_ttl     = 0
-    default_ttl = 300
-    max_ttl     = 3600
-  }
-
-  # config.js: short TTL so API endpoint updates propagate quickly
-  ordered_cache_behavior {
-    path_pattern           = "/config.js"
-    target_origin_id       = "cohort-ui-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD"]
-    cached_methods         = ["GET", "HEAD"]
-    compress               = true
-
-    forwarded_values {
-      query_string = false
-      cookies { forward = "none" }
-    }
-
-    min_ttl     = 0
-    default_ttl = 60
-    max_ttl     = 60
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-    }
-  }
-
-  viewer_certificate {
-    cloudfront_default_certificate = true
-  }
-
-  tags = {
-    Name = "${var.project_name}-cloudfront-ui"
-  }
 }
 
 ####################################
@@ -170,4 +100,12 @@ resource "aws_s3_object" "ui_investigation_html" {
   source       = "${path.module}/../ui/investigation.html"
   content_type = "text/html"
   etag         = filemd5("${path.module}/../ui/investigation.html")
+}
+
+resource "aws_s3_object" "ui_logo" {
+  bucket       = aws_s3_bucket.ui.id
+  key          = "assets/repo_image.jpg"
+  source       = "${path.module}/../assets/repo_image.jpg"
+  content_type = "image/jpeg"
+  etag         = filemd5("${path.module}/../assets/repo_image.jpg")
 }

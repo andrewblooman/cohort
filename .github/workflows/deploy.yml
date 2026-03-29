@@ -61,11 +61,11 @@ jobs:
           retention-days: 5
 
       - name: Install Checkov
-        run: pip install checkov
+        run: pip install checkov==3.2.0
 
       # HIGH and CRITICAL findings fail the pipeline; LOW and MEDIUM are warnings only.
       - name: Checkov scan
-        run: checkov -f terraform/plan.json --soft-fail-on LOW,MEDIUM
+        run: checkov -f terraform/plan.json --framework terraform_plan --soft-fail-on LOW --soft-fail-on MEDIUM
 
   # ──────────────────────────────────────────────────────────────
   # Runs only on workflow_dispatch (manual trigger).
@@ -103,7 +103,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: terraform
+          path: .
 
       - name: Terraform Apply
         working-directory: terraform

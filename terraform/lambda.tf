@@ -357,6 +357,7 @@ resource "aws_lambda_function" "list_investigations" {
     variables = {
       AWS_DEFAULT_REGION    = var.aws_region
       SFN_STATE_MACHINE_ARN = aws_sfn_state_machine.incident_response.arn
+      ARTIFACTS_BUCKET      = aws_s3_bucket.artifacts.id
     }
   }
 

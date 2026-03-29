@@ -117,3 +117,9 @@ variable "agentcore_container_tag" {
   type        = string
   default     = "latest"
 }
+
+variable "ui_vpc_endpoint_id" {
+  description = "ID of the S3 VPC Interface Endpoint (e.g. vpce-0abc123...) used to restrict UI bucket access to requests arriving from within the corporate VPC. Must be provided when the UI bucket is deployed."
+  type        = string
+  default     = ""
+}
